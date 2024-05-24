@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<HDF5>
+    <Group name="/waveforms" version="1.12">
+        <CArray name="wfs" dtype="int16" complevel="5" complib="gzip">
+            <!-- Data of waveforms  -->
+        </CArray>
+        <CArray name="attrs_gps" dtype="float64" complevel="5" complib="gzip">
+            <Attributes>
+                <Attribute name="TimeSts"/>     <!-- Validity of the GPS, if it is 0 all GPS attributes must be 0  -->
+                <Attribute name="Year"/>        <!-- Year from GPS -->
+                <Attribute name="Month"/>       <!-- Month from GPS -->
+                <Attribute name="Day"/>         <!-- Day from GPS -->
+                <Attribute name="HH"/>          <!-- Hours from GPS -->
+                <Attribute name="mm"/>          <!-- Minutes from GPS -->
+                <Attribute name="ss"/>          <!-- Seconds from GPS -->
+                <Attribute name="usec"/>        <!-- Microseconds from GPS -->
+            </Attributes>
+        </CArray>
+        <CArray name="attrs_reco_int" dtype="int64" complevel="5" complib="gzip">
+            <Attributes>
+                <Attribute transformation="def transform(x): return int(x.decode('utf-8').split('_')[1])" 
+                           name="original_wf"/>    <!-- DL0 waveform index -->
+                <Attribute name="wf_size"/>        <!-- Window (DL1) size of this waveform -->
+                <Attribute name="wf_start"/>       <!-- Starting time index of this waveform in DL0 -->
+                <Attribute name="n_peaks"/>        <!-- Number of peaks in the DLO waveform -->
+                <Attribute name="peak_idx"/>       <!-- DL0 index of the detected peak -->
+                <Attribute name="isdouble"/>       <!-- A flag value of 1 suggests that a number of peaks > 1 have been detected in this window (DL1) -->
+                <Attribute name="pk0_pos"/>        <!-- DL0 time index of the first detected peak  -->
+                <Attribute name="peak_pos"/>       <!-- DL1 time index of the detected peak  -->
+            </Attributes>
+        </CArray>
+        <CArray name="attrs_reco_float" dtype="float64" complevel="5" complib="gzip">
+            <Attributes>
+                <Attribute name="tstart"/>         <!-- tstart DLO waveform -->
+                <Attribute name="tend"/>           <!-- tend DLO waveform -->
+                <Attribute name="mmean1"/>         <!-- mean first 100 timesteps DLO waveform -->
+                <Attribute name="stdev1"/>         <!-- stdev first 100 timesteps DLO waveform -->
+            </Attributes>
+        </CArray>
+        <CArray name="attrs_float" dtype="float64" complevel="5" complib="gzip">
+            <Attributes>
+                <Attribute name="tstart1"/>        <!-- tstart recomputed for DL1 waveform -->
+                <Attribute name="tend1"/>          <!-- tend recomputed for DL1 waveform -->
+            </Attributes>
+        </CArray>
+        <CArray name="attrs_int" dtype="int64" complevel="5" complib="gzip">
+            <Attributes>
+                <Attribute name="CurrentOffset"/>  <!-- It is the current offset of the DL0 circular buffer -->
+                <Attribute name="TriggerOffset"/>  <!-- It is the DL0 peak trigger offset of the ring buffer  -->
+                <Attribute name="Dec"/>            <!-- Decimation factor -->
+                <Attribute name="Eql"/>
+                <Attribute name="rp_id"/>          <!-- Redpitaya ID -->
+                <Attribute name="runid"/>          <!-- Identifies the execution phase to which the packets -->
+                <Attribute name="sessionID"/>      <!-- ID of the current data acquisition session -->
+                <Attribute name="PPSSliceNO"/>     <!-- PPS counter. If 0 ok, if 1 or 2 ok but it has read the time value of the last or last two samples, if it starts to increase there are problems -->
+                <Attribute name="SampleNo"/>       <!-- the waveform size is fixed to 16384 samples, each sample is represented using a 16 bit signed integer -->
+                <Attribute name="configID"/>
+            </Attributes>
+        </CArray>
+    </Group>
+</HDF5>
