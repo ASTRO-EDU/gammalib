@@ -1,0 +1,21 @@
+{
+    "size": 1000,
+    "xlen": 1000,
+    "maxcount_value": 8192,
+    "max_peaks": 1,
+    "gauss_maxrate": 0.02,
+    "gauss_std": "none", 
+    "gauss_mean": "none",
+    "bkgbase_level": 100,
+    "gamma_min_wtSat": 9000,
+    "gamma_max_wtSat": 12000,
+    "gamma_min_noSat": 300,
+    "gamma_max_noSat": 8100,
+    "tstart_min": 50,
+    "tstart_max": 300,
+    "delta_tstart": 50,
+    "tau1_min": 3,
+    "tau1_max": 10,
+    "tau2_min": 600,
+    "tau2_max": 700
+}
