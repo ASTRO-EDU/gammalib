@@ -4,7 +4,7 @@ import exp
 from tqdm.auto import tqdm
 from matplotlib import pyplot as plt
 
-class GammaSym:
+class GammaSim:
     def __init__(self, configfile_path) -> None:
         with open(configfile_path, 'r') as configfile:
             config = json.load(configfile)
