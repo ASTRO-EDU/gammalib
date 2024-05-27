@@ -112,3 +112,15 @@ class GammaSim:
         axs[1].text(0.75, 0.95, f'Length: {length_fill}', transform=axs[1].transAxes, ha='right', va='top', bbox=dict(facecolor='white', alpha=0.5))
         # plt.tight_layout()
         plt.show()
+
+    def get_dataset(self):
+        return self.__dataset
+
+    def get_labels(self):
+        return self.__labels
+    
+    def get_labelsSplit(self):
+        return self.__labels_split
+    
+    def get_areas(self):
+        return self.__integrals

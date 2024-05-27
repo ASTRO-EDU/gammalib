@@ -47,13 +47,29 @@ The configuration file is a json file that is made up of the following keys:
 
 * > `generate_dataset(saturation)`
 
-Once you defined the config file you can generate your dataset as follows:
-```
-gammasim.generate_dataset(saturation)
-100%|██████████| 1000/1000 [00:00<00:00, 4453.80it/s]
-```
-the `saturation` argument is used to define the desire to reach or not the saturation level given by the `maxcount_value`
+    Once you defined the config file you can generate your dataset as follows:
+    ```
+    gammasim.generate_dataset(saturation)
+    100%|██████████| 1000/1000 [00:00<00:00, 4453.80it/s]
+    ```
+    the `saturation` argument is used to define the desire to reach or not the saturation level given by the `maxcount_value`
 
 * > `plot_wf(idx)`
 
-PLots the `idx`-th waveform. If `idx` is equal to `max` (`min`) it will plot the waveforms with the maximum (minimum) area label. Its default value is `random`, in which case it will plot a waveform at random from the dataset
+    PLots the `idx`-th waveform. If `idx` is equal to `max` (`min`) it will plot the waveforms with the maximum (minimum) area label. Its default value is `random`, in which case it will plot a waveform at random from the dataset
+
+* > `get_dataset()`
+
+    Returns the dataset of waveforms
+
+* > `def get_labels()`
+
+    Returns the dataset of waveforms without Gaussian noise
+    
+* > `def get_labelsSplit()`
+
+    Returns `size * xlen * max_peaks` waveforms without Gaussian noise and without background
+    
+* > `def get_areas()`
+
+    Returns an array of dimension `size * max_peaks` of constant integer values representing the area of each peaks 
