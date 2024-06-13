@@ -3,12 +3,13 @@ import json
 import exp
 from tqdm.auto import tqdm
 from matplotlib import pyplot as plt
+from typing import Union
 
 class GammaSim:
     def __init__(self, configfile_path) -> None:
         """
         Create an object GammaSim, a simulator for GAMMA-FLASH data from a configuration file.
-        ## __Args__
+        ## Args
         * `configfile_path`: configuration file
         """
         with open(configfile_path, 'r') as configfile:
@@ -43,7 +44,7 @@ class GammaSim:
     def generate_dataset(self, F_saturation: bool) -> None:
         """
         Generate the dataset
-        ## __Args__
+        ## Args
         * F_saturation:
         """
         self.__params       = []
@@ -94,7 +95,7 @@ class GammaSim:
             peak_signals = np.concatenate(peak_signals)
             self.__labels_split[i, :len(peak_signals)] = peak_signals
 
-    def plot_wf(self, idx='random': str | int) -> None:
+    def plot_wf(self, idx: Union[int, str] ='random') -> None:
         """
         Plot a single waveform from the dataset with its generation parameters:
         ## __Args__
