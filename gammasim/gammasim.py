@@ -6,6 +6,11 @@ from matplotlib import pyplot as plt
 
 class GammaSim:
     def __init__(self, configfile_path) -> None:
+        """
+        Create an object GammaSim, a simulator for GAMMA-FLASH data from a configuration file.
+        ## __Args__
+        * `configfile_path`: configuration file
+        """
         with open(configfile_path, 'r') as configfile:
             config = json.load(configfile)
         # Imposta dinamicamente gli attributi dall'oggetto JSON
@@ -35,7 +40,12 @@ class GammaSim:
         return t_starts
 
 
-    def generate_dataset(self, F_saturation):
+    def generate_dataset(self, F_saturation: bool) -> None:
+        """
+        Generate the dataset
+        ## __Args__
+        * F_saturation:
+        """
         self.__params       = []
         self.__dataset      = np.empty((self.size, self.xlen), dtype=np.int16)
         self.__labels_split = np.empty((self.size, self.max_peaks*self.xlen))
@@ -84,7 +94,16 @@ class GammaSim:
             peak_signals = np.concatenate(peak_signals)
             self.__labels_split[i, :len(peak_signals)] = peak_signals
 
-    def plot_wf(self, idx='random'):
+    def plot_wf(self, idx='random': str | int) -> None:
+        """
+        Plot a single waveform from the dataset with its generation parameters:
+        ## __Args__
+        * `idx`: if idx is `int` it will print `idx`-th element of the dataset. When it is a `str` type
+          it can assume the following values:
+            - `max`: it plots the waveform with the maximum area
+            - `min`: it plots the waveform with the minimum area
+            - `random`: it plots a random waveform
+        """
         # Extract idx
         if type(idx) == int:
             pass
@@ -124,3 +143,6 @@ class GammaSim:
     
     def get_areas(self):
         return self.__integrals
+
+    def get_params(self):
+        return self.__params
