@@ -17,22 +17,33 @@ def apply_exp_tau(t, x, t_start, gamma, tau1, tau2):
     y = np.concatenate([x_leftzeros, x_resp])
     return x + y
     
+def quantize_signal(input_signal, n_bit, input_min, input_max):
+    # Initialize the output array with zeros
+    output_s = np.zeros_like(input_signal)
+    
+    n_q = 2**n_bit
+    # Calculate the quantization step size
+    q_interval = input_max - input_min
+    step_size = q_interval / (n_q - 1)
+    
+    # Generate quantization levels (q_values)
+    q_values = np.linspace(input_min, input_max, n_q)
+    
+    # Perform quantization for each value in the input signal
+    for i in range(len(input_signal)):
+        if input_signal[i] <= input_min:
+            output_s[i] = q_values[0]
+        elif input_signal[i] >= input_max:
+            output_s[i] = q_values[-1]
+        else:
+            # Find the closest quantization level
+            diff = np.abs(q_values - input_signal[i])
+            output_s[i] = q_values[np.argmin(diff)]
+    
+    return output_s
 
-def quantize_signal(input_signal, n_q=14 , input_min=-1, input_max=1):
-
-
-    q_signal = round(input_signal)
-    return q_signal
-
-def assign_interval(n, n_q=14):
-    round_n = round(n)
-    for i in range(n_q):
-        if round_n >= 2**i and round_n < 2**(i+1):
-            return 2**i
         
 
-def apply_gauss_round(x, mean, dev):
-    x_gauss = np.round(np.random.normal(mean, dev, size=x.shape)) + x
-    x_gauss[x_gauss > 8192] = 8192
-    x_gauss[x_gauss < 0] = 0
+def apply_gauss(x, mean, dev):
+    x_gauss = np.random.normal(mean, dev, size=x.shape) + x
     return x_gauss

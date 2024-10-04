@@ -79,7 +79,7 @@ class GammaSim:
                 # Save metadata
                 peak_params.append({'t_start': t_start, 'gamma': gamma, 'tau1': tau1, 'tau2': tau2})
                 peak_signals.append(peak_signal)
-                peak_integrals.append(np.sum(peak_signal))
+                peak_integrals.append(np.sum(peak_signal)*self.sampling_time)
             # Sort peak_params, peak_signals, and peak_integrals based on t_start
             sorted_data = sorted(zip(peak_params, peak_signals, peak_integrals), key=lambda x: x[0]['t_start'])
             peak_params, peak_signals, peak_integrals = zip(*sorted_data)
@@ -88,11 +88,13 @@ class GammaSim:
             # Add the background to the peak signal
             x_total = x_base + np.sum(peak_signals, axis=0)
             # Apply Gauss noise 
-            x_total_noise = exp.apply_gauss_round(x_total, self.gauss_mean, self.gauss_std)
+            x_total_noise = exp.apply_gauss(x_total, self.gauss_mean, self.gauss_std)
             # integrals
             self.__integrals[i][:m] = peak_integrals
+            # apply quantization 
+            x_quantized = exp.quantize_signal(x_total_noise, self.n_bit_quantization, self.mincount_value, self.maxcount_value)
             # Append dataset
-            self.__dataset[i] = x_total_noise
+            self.__dataset[i] = x_quantized
             # Combine labels
             # NOTE: TO TAKE UNDER CONTROL MEMORY CONS. COMMENTS THESE LINES
             self.__labels[i] = np.sum(peak_signals, axis=0)
@@ -126,7 +128,7 @@ class GammaSim:
         axs[0].set_title(param_string)
         axs[0].step(self.__t, self.__dataset[idx], color='tab:blue')
         axs[1].set_title(f'wf_{idx:05d}, \nAreas: {self.__integrals[idx]}')
-        axs[1].step(self.__t, self.__labels[idx], color='tab:red')
+        axs[1].plot(self.__t, self.__labels[idx], color='tab:red')
         # Fill between non-zero values with 50% transparency
         nonzero_values_labels = self.__labels[idx] != 0
         axs[1].fill_between(self.__t, 0, max(self.__labels[idx]), where=nonzero_values_labels, color='tab:red', alpha=0.35)
