@@ -126,7 +126,7 @@ def plot_hists(area_real, area_pred,
     diff[diff < -1.] = -1.
 
     # Definisci il numero di bin e il range
-    num_bins = ceil((new_max-new_min)/bin_size)
+    num_bins = int((new_max-new_min)/bin_size)
     range_min = new_min
     range_max = new_max
     print(f'### {title}')
@@ -174,7 +174,7 @@ def plot_gaussian_fitted(area_real, area_pred,
     diff[diff < -1.] = -1.
 
     # Definisci il numero di bin e il range
-    num_bins = ceil((new_max-new_min)/bin_size)
+    num_bins = int((new_max-new_min)/bin_size)
     range_min = new_min
     # range_min = new_min
     range_max = new_max
