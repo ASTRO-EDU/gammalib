@@ -56,9 +56,7 @@ class GammaSim:
         x_base = self.bkgbase_level * np.ones_like(self.__t)
         # Select gamma_min and gamma_max depending on the saturation flag
         gamma_min, gamma_max = (self.gamma_min_wtSat, self.gamma_max_wtSat) if F_saturation else (self.gamma_min_noSat, self.gamma_max_noSat)
-        gamma   = np.random.randint(gamma_min, gamma_max) 
-        tau1    = np.random.randint(self.tau1_min, self.tau1_max)
-        tau2    = np.random.randint(self.tau2_min, self.tau2_max)
+
         for i in tqdm(range(len(self.__dataset))):
             peak_params        = []
             peak_signals       = []
@@ -66,6 +64,10 @@ class GammaSim:
             m = int(np.random.uniform(1, self.max_peaks, 1)) if F_random_npeaks else self.max_peaks
             # Generate the tstart in a safe mode from overlaps
             tstarts = self.__generate_tstarts(m)
+            # Generate the parameters
+            gamma   = np.random.randint(gamma_min, gamma_max) 
+            tau1    = np.random.randint(self.tau1_min, self.tau1_max)
+            tau2    = np.random.randint(self.tau2_min, self.tau2_max)
             for j in range(m):
                 # Generate the parameters
                 
