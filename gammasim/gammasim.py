@@ -37,7 +37,7 @@ class GammaSim:
             # Generate a candidate t_start within the specified range
             t_start_candidate = np.random.randint(self.tstart_min, self.tstart_max)*sampling_time
             # Check if the candidate is at least delta_tstart away from all existing t_starts
-            if all(abs(t_start_candidate - ts) >= self.delta_tstart for ts in t_starts):
+            if all(abs(t_start_candidate - ts) >= self.delta_tstart*sampling_time for ts in t_starts):
                 t_starts.append(t_start_candidate) 
         return t_starts
 
