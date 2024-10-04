@@ -5,15 +5,31 @@ def apply_exp(t,x,t_start,gamma,a):
     return x + y
 
 def apply_exp_tau(t, x, t_start, gamma, tau1, tau2):
-    a1 = -(np.log(1e-4)/tau1)
-    a2 = np.log(.01)/tau2
 
-    x_leftzeros  = np.zeros(t_start-tau1)
-    x_prepeak    = np.floor(gamma*np.exp(a1 * (t[t_start-tau1:t_start]-(t_start))))
-    x_postpeak   = np.floor(gamma*np.exp(a2 * (t[t_start:t_start+tau2]-(t_start))))
-    x_rightzeros = np.zeros(max(len(x)-t_start-tau2, 0))
-    y = np.concatenate([x_leftzeros, x_prepeak, x_postpeak,x_rightzeros])
+    split_index = np.where(t >= t_start)[0][0]
+    t_left = t[:split_index]  # All values before t_start
+    print(t_left.shape)
+    x_leftzeros  = np.zeros_like(t_left)
+    print(x_leftzeros.shape)
+    t_right = t[split_index:]  # All values from t_start onward
+    x_resp = gamma*(np.exp(-(t_right-t_start)/tau1)-np.exp(-(t_right-t_start)/tau2))
+
+    y = np.concatenate([x_leftzeros, x_resp])
     return x + y
+    
+
+def quantize_signal(input_signal, n_q=14 , input_min=-1, input_max=1):
+
+
+    q_signal = round(input_signal)
+    return q_signal
+
+def assign_interval(n, n_q=14):
+    round_n = round(n)
+    for i in range(n_q):
+        if round_n >= 2**i and round_n < 2**(i+1):
+            return 2**i
+        
 
 def apply_gauss_round(x, mean, dev):
     x_gauss = np.round(np.random.normal(mean, dev, size=x.shape)) + x

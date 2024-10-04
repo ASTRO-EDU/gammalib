@@ -1,9 +1,10 @@
 {
-    "size": 1000,
+    "size": 1,
     "xlen": 1000,
+    "n_bit_quantization": 14,
     "maxcount_value": 8192,
-    "max_peaks": 3,
-    "gauss_maxrate": 0.02,
+    "max_peaks": 1,
+    "gauss_maxrate": 0.00,
     "gauss_std": "none", 
     "gauss_mean": "none",
     "bkgbase_level": 100,
