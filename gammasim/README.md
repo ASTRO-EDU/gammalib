@@ -24,8 +24,11 @@ gammasim = GammaSim('config.json')
 
 The configuration file is a json file that is made up of the following keys:
 * `size`: is the dimension of the dataset, the number of data samples
-* `xlen`: is the length of the time series
-* `maxcount_value`: it is the maximum measurable count in cases of saturation
+* `xlen`: is the length of the time series in samples
+* `sampling_time`: constant time interval between two samples. time series duration is `xlen*sampling_time`
+* `mincount_value`: the minimum measurable count (ADC output)
+* `maxcount_value`: the maximum measurable count (ADC output)
+* `n_bit_quantization`: the quantization of the count interval `mincount_value:maxcount_value`
 * `max_peaks`: is the number of peaks present in each waveform
 * `gauss_maxrate`: is a value between 0 and 1, and represents the percentage of mean and std deviation with respect to the `maxcount_value` and is used in the case where `gauss_std` or `gauss_mean` have been set to `none` to calculate the standard deviation or the average, respectively, for the Gaussian noise to be added to the clean signal
 * `gauss_std`: standard deviation for the Gaussian noise to be added to the clean signal. When it is `none`, `maxcount_value * gauss_maxrate` is used as standard deviation

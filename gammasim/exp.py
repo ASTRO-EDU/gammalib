@@ -1,18 +1,36 @@
 import numpy as np
+from math import sqrt
+from scipy.special import erf
 
 def apply_exp(t,x,t_start,gamma,a):
     y = np.concatenate([np.zeros(t_start),np.floor(gamma*np.exp(a*(t[t_start:]-t_start)))])
     return x + y
 
-def apply_exp_tau(t, x, t_start, gamma, tau1, tau2):
+def apply_exp_tau(t, x, t_start, gamma, tau1, tau2, sigma):
+    a1 = -(np.log(1/gamma)/tau1)
+    a2 = np.log(1/gamma)/tau2
 
+    x_leftzeros  = np.zeros(t_start-tau1)
+    x_prepeak    = gamma*np.exp(a1 * (t[t_start-tau1:t_start]-(t_start)))
+    x_postpeak   = gamma*np.exp(a2 * (t[t_start:t_start+tau2]-(t_start)))
+    x_rightzeros = np.zeros(max(len(x)-t_start-tau2, 0))
+    y = np.concatenate([x_leftzeros, x_prepeak, x_postpeak,x_rightzeros])
+    return x + y
+    
+def _erf_term(t, t_start, sigma, tau):
+    return erf((t-t_start)/(sqrt(2)*sigma)-(sqrt(2)*sigma)/(2*tau))
+
+def _sigle_exp_decay(t, t_start, sigma, tau):
+    return np.exp(((sigma**2)/(2*tau**2))-(t-t_start)/tau)
+
+def second_ord_exp_decay(t, x, t_start, gamma, tau2, tau1, sigma):
     split_index = np.where(t >= t_start)[0][0]
     t_left = t[:split_index]  # All values before t_start
-    print(t_left.shape)
     x_leftzeros  = np.zeros_like(t_left)
-    print(x_leftzeros.shape)
     t_right = t[split_index:]  # All values from t_start onward
-    x_resp = gamma*(np.exp(-(t_right-t_start)/tau1)-np.exp(-(t_right-t_start)/tau2))
+    
+    x_resp = gamma*(_sigle_exp_decay(t_right, t_start, sigma, tau1)*(1+_erf_term(t_right, t_start, sigma, tau1))-
+                     _sigle_exp_decay(t_right, t_start, sigma, tau2)*(1+_erf_term(t_right, t_start, sigma, tau2)))
 
     y = np.concatenate([x_leftzeros, x_resp])
     return x + y
