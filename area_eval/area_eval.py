@@ -2,6 +2,7 @@ from typing import List
 import os
 import numpy as np
 import matplotlib.pyplot as plt
+from math import ceil 
 from scipy.stats import norm
 from scipy.optimize import curve_fit
 
@@ -45,7 +46,7 @@ def plot_ARR(area_real, area_pred, bin_size=0.1, path=None, xlogscale=False):
         marr_value = marr(area_real=area_real[:,idx_peak], area_pred=area_pred[:,idx_peak])
         arr_values = arr(area_real=area_real[:,idx_peak], area_pred=area_pred[:,idx_peak])
         # Definisci il numero di bin e il range
-        num_bins = min(int((arr_values.max() - arr_values.min()) / bin_size), 100)
+        num_bins = min(ceil((arr_values.max() - arr_values.min()) / bin_size), 100)
         # raise Exception('Stop')
         # Creazione dei subplots
         fig, axs = plt.subplots(1, 2, figsize=(12, 5))
@@ -125,7 +126,7 @@ def plot_hists(area_real, area_pred,
     diff[diff < -1.] = -1.
 
     # Definisci il numero di bin e il range
-    num_bins = int((new_max-new_min)/bin_size)
+    num_bins = ceil((new_max-new_min)/bin_size)
     range_min = new_min
     range_max = new_max
     print(f'### {title}')
@@ -173,7 +174,7 @@ def plot_gaussian_fitted(area_real, area_pred,
     diff[diff < -1.] = -1.
 
     # Definisci il numero di bin e il range
-    num_bins = int((new_max-new_min)/bin_size)
+    num_bins = ceil((new_max-new_min)/bin_size)
     range_min = new_min
     # range_min = new_min
     range_max = new_max

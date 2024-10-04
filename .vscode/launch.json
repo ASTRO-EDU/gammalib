@@ -1,0 +1,20 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "Python: Launch with Arguments",
+        "type": "debugpy",
+        "cwd":  "${workspaceFolder}/gammasim/",
+        "request": "launch",
+        "program": "${workspaceFolder}/gammasim/main.py",  // Path to your script
+        "console": "integratedTerminal",
+        "args": ["1"],  // Command line arguments to pass
+        "env": {
+          "PYTHONPATH": "${workspaceFolder}/gammasim"  // Set the PYTHONPATH
+        },
+        "python": "/home/luca/venvs/gammasim/bin/python",  // Path to your virtual environment Python interpreter
+        "justMyCode": true
+      }
+    ]
+  }
+  
