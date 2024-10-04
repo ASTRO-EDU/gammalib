@@ -65,10 +65,10 @@ class GammaSim:
             # Generate the tstart in a safe mode from overlaps
             tstarts = self.__generate_tstarts(m)
             # Generate the parameters
-            gamma   = np.random.randint(gamma_min, gamma_max) 
             tau1    = np.random.randint(self.tau1_min, self.tau1_max)
             tau2    = np.random.randint(self.tau2_min, self.tau2_max)
             for j in range(m):
+                gamma   = np.random.randint(gamma_min, gamma_max) 
                 # Generate the parameters
                 
                 t_start = tstarts[j]
