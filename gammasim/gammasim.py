@@ -6,6 +6,7 @@ from matplotlib import pyplot as plt
 from scipy.signal import find_peaks
 from typing import Union
 import plot_utils
+from configuration_parser import ConfigModel
 
 class GammaSim:
     def __init__(self, configfile_path) -> None:
@@ -15,31 +16,27 @@ class GammaSim:
         * `configfile_path`: configuration file
         """
         with open(configfile_path, 'r') as configfile:
-            config = json.load(configfile)
-        # Imposta dinamicamente gli attributi dall'oggetto JSON
-        for key, value in config.items():
-            setattr(self, key, value)
-        
-        self.__d = np.arange(0, self.xlen)
-        self.__t = self.__d*self.sampling_time
+            
+            self._cfg = ConfigModel(**json.load(configfile))
+            print(self._cfg)
+        # Imposta gli attributi di self in base ai campi di config
 
-        if self.gauss_std == "none":
-            self.gauss_std = self.gauss_maxrate * self.maxcount_value
-        else:
-            self.gauss_std = float(self.gauss_std)
+        self.__d = np.arange(0, self._cfg.xlen)
+        self.__t = self.__d*self._cfg.sampling_time
+
+        if self._cfg.gauss_std is None:
+            self._cfg.gauss_std = self._cfg.gauss_maxrate * self._cfg.maxcount_value
         
-        if self.gauss_std == "none":
-            self.gauss_mean = self.gauss_maxrate * self.maxcount_value
-        else:
-            self.gauss_mean = float(self.gauss_std)
+        if self._cfg.gauss_mean is None:
+            self._cfg.gauss_mean = self._cfg.gauss_maxrate * self._cfg.maxcount_value
 
     def __generate_tstarts(self, npeaks, sampling_time):
         t_starts = [] 
         while len(t_starts) < npeaks:  
             # Generate a candidate t_start within the specified range
-            t_start_candidate = np.random.randint(self.tstart_min, self.tstart_max)*sampling_time
+            t_start_candidate = np.random.randint(self._cfg.tstart_min, self._cfg.tstart_max)*sampling_time
             # Check if the candidate is at least delta_tstart away from all existing t_starts
-            if all(abs(t_start_candidate - ts) >= self.delta_tstart*sampling_time for ts in t_starts):
+            if all(abs(t_start_candidate - ts) >= self._cfg.delta_tstart*sampling_time for ts in t_starts):
                 t_starts.append(t_start_candidate) 
         return t_starts
 
@@ -51,37 +48,37 @@ class GammaSim:
         * F_saturation:
         """
         self.__params       = []
-        self.__dataset      = np.empty((self.size, self.xlen), dtype=np.int16)
-        self.__labels_split = np.empty((self.size, self.max_peaks*self.xlen))
-        self.__labels       = np.empty((self.size, self.xlen))
-        self.__integrals    = np.zeros((self.size, self.max_peaks))
+        self.__dataset      = np.empty((self._cfg.size, self._cfg.xlen), dtype=np.int16)
+        self.__labels_split = np.empty((self._cfg.size, self._cfg.max_peaks*self._cfg.xlen))
+        self.__labels       = np.empty((self._cfg.size, self._cfg.xlen))
+        self.__integrals    = np.zeros((self._cfg.size, self._cfg.max_peaks))
         # Background of the signal
-        x_base = self.bkgbase_level * np.ones_like(self.__t)
+        x_base = self._cfg.bkgbase_level * np.ones_like(self.__t)
         # Select gamma_min and gamma_max depending on the saturation flag
-        gamma_min, gamma_max = (self.gamma_min_wtSat, self.gamma_max_wtSat) if F_saturation else (self.gamma_min_noSat, self.gamma_max_noSat)
+        gamma_min, gamma_max = (self._cfg.gamma_min_wtSat, self._cfg.gamma_max_wtSat) if F_saturation else (self._cfg.gamma_min_noSat, self._cfg.gamma_max_noSat)
         
-        gauss_ker = np.random.uniform(self.gauss_kernel_min, self.gauss_kernel_max)
-        gauss_ker_dt = gauss_ker*self.sampling_time
-        if self.wf_shape == 1:
+        gauss_ker = np.random.uniform(self._cfg.gauss_kernel_min, self._cfg.gauss_kernel_max)
+        gauss_ker_dt = gauss_ker*self._cfg.sampling_time
+        if self._cfg.wf_shape == 1:
             shape_method = exp.apply_exp_tau
             time = self.__d
             dt = 1
-            tau1    = np.random.randint(self.tau1_min, self.tau1_max)
-            tau2    = np.random.randint(self.tau2_min, self.tau2_max)
+            tau1    = np.random.randint(self._cfg.tau1_min, self._cfg.tau1_max)
+            tau2    = np.random.randint(self._cfg.tau2_min, self._cfg.tau2_max)
             gauss_ker = None
             gauss_ker_dt = None
-        elif self.wf_shape == 2:
+        elif self._cfg.wf_shape == 2:
             shape_method = exp.second_ord_exp_decay
             time = self.__t
-            dt=self.sampling_time
-            tau1    = np.random.uniform(self.tau1_min, self.tau1_max)
-            tau2    = np.random.uniform(self.tau2_min, self.tau2_max)
-        elif self.wf_shape == 3:
+            dt=self._cfg.sampling_time
+            tau1    = np.random.uniform(self._cfg.tau1_min, self._cfg.tau1_max)
+            tau2    = np.random.uniform(self._cfg.tau2_min, self._cfg.tau2_max)
+        elif self._cfg.wf_shape == 3:
             shape_method = exp.first_ord_exp_decay
             time = self.__t
-            dt=self.sampling_time
+            dt=self._cfg.sampling_time
             tau1    = None
-            tau2    = np.random.uniform(self.tau2_min, self.tau2_max)
+            tau2    = np.random.uniform(self._cfg.tau2_min, self._cfg.tau2_max)
             gauss_ker = None
             gauss_ker_dt = None
 
@@ -89,7 +86,7 @@ class GammaSim:
             peak_params        = []
             peak_signals       = []
             peak_integrals     = []
-            m = int(np.random.uniform(1, self.max_peaks, 1)) if F_random_npeaks else self.max_peaks
+            m = int(np.random.uniform(1, self._cfg.max_peaks, 1)) if F_random_npeaks else self._cfg.max_peaks
             # Generate the tstart in a safe mode from overlaps
             tstarts = self.__generate_tstarts(m, dt)
             # Generate the parameters
@@ -107,7 +104,7 @@ class GammaSim:
                 # Save metadata
                 peak_params.append({'t_start': t_start, 'height': height, 'gamma': gamma, 'tau1': tau1, 'tau2': tau2, 'g_kernel': gauss_ker })
                 peak_signals.append(peak_signal)
-                peak_integrals.append(np.sum(peak_signal)*self.sampling_time)
+                peak_integrals.append(np.sum(peak_signal)*self._cfg.sampling_time)
             # Sort peak_params, peak_signals, and peak_integrals based on t_start
             sorted_data = sorted(zip(peak_params, peak_signals, peak_integrals), key=lambda x: x[0]['t_start'])
             peak_params, peak_signals, peak_integrals = zip(*sorted_data)
@@ -116,11 +113,11 @@ class GammaSim:
             # Add the background to the peak signal
             x_total = x_base + np.sum(peak_signals, axis=0)
             # Apply Gauss noise 
-            x_total_noise = exp.apply_gauss(x_total, self.gauss_mean, self.gauss_std)
+            x_total_noise = exp.apply_gauss(x_total, self._cfg.gauss_mean, self._cfg.gauss_std)
             # integrals
             self.__integrals[i][:m] = peak_integrals
             # apply quantization 
-            x_quantized = exp.quantize_signal(x_total_noise, self.n_bit_quantization, self.mincount_value, self.maxcount_value)
+            x_quantized = exp.quantize_signal(x_total_noise, self._cfg.n_bit_quantization, self._cfg.mincount_value, self._cfg.maxcount_value)
             # Append dataset
             self.__dataset[i] = x_quantized
             # Combine labels
@@ -148,7 +145,7 @@ class GammaSim:
             elif idx == "min":
                 idx = np.argmin(np.sum(self.__integrals, axis=1))
             elif idx == "random":
-                idx = np.random.randint(0, self.size)
+                idx = np.random.randint(0, self._cfg.size)
         else:
             raise Exception(f"Type for {idx} not allowed")
         
@@ -167,7 +164,7 @@ class GammaSim:
         
         if len(maxima[0]) == len(self.__params[idx]):
             for m, p in zip(maxima[0], self.__params[idx]):
-                axs[1].t_bar(x=m*self.sampling_time, ymin=0, ymax=p['height'], segment_length=self.sampling_time*150, color='tab:blue')
+                axs[1].t_bar(x=m*self._cfg.sampling_time, ymin=0, ymax=p['height'], segment_length=self._cfg.sampling_time*150, color='tab:blue')
         else:
             print(maxima)
         # Fill between non-zero values with 50% transparency
@@ -197,7 +194,7 @@ class GammaSim:
         return self.__params
     
     def get_sampling_time(self):
-        return self.sampling_time
+        return self._cfg.sampling_time
     
     def get_shape_method(self):
-        return self.wf_shape
+        return self._cfg.wf_shape
