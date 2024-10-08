@@ -3,7 +3,9 @@ import json
 import exp
 from tqdm.auto import tqdm
 from matplotlib import pyplot as plt
+from scipy.signal import find_peaks
 from typing import Union
+import plot_utils
 
 class GammaSim:
     def __init__(self, configfile_path) -> None:
@@ -57,20 +59,31 @@ class GammaSim:
         x_base = self.bkgbase_level * np.ones_like(self.__t)
         # Select gamma_min and gamma_max depending on the saturation flag
         gamma_min, gamma_max = (self.gamma_min_wtSat, self.gamma_max_wtSat) if F_saturation else (self.gamma_min_noSat, self.gamma_max_noSat)
+        
         gauss_ker = np.random.uniform(self.gauss_kernel_min, self.gauss_kernel_max)
         gauss_ker_dt = gauss_ker*self.sampling_time
         if self.wf_shape == 1:
             shape_method = exp.apply_exp_tau
             time = self.__d
-            dt=1
+            dt = 1
             tau1    = np.random.randint(self.tau1_min, self.tau1_max)
             tau2    = np.random.randint(self.tau2_min, self.tau2_max)
+            gauss_ker = None
+            gauss_ker_dt = None
         elif self.wf_shape == 2:
             shape_method = exp.second_ord_exp_decay
             time = self.__t
             dt=self.sampling_time
             tau1    = np.random.uniform(self.tau1_min, self.tau1_max)
             tau2    = np.random.uniform(self.tau2_min, self.tau2_max)
+        elif self.wf_shape == 3:
+            shape_method = exp.first_ord_exp_decay
+            time = self.__t
+            dt=self.sampling_time
+            tau1    = None
+            tau2    = np.random.uniform(self.tau2_min, self.tau2_max)
+            gauss_ker = None
+            gauss_ker_dt = None
 
         for i in tqdm(range(len(self.__dataset))):
             peak_params        = []
@@ -89,8 +102,10 @@ class GammaSim:
                 # Create the peak signal
                 
                 peak_signal  = shape_method(time, np.zeros_like(time), t_start, gamma, tau1, tau2, gauss_ker_dt)
+                x_max = find_peaks(peak_signal)[0][0]
+                height = peak_signal[x_max]
                 # Save metadata
-                peak_params.append({'t_start': t_start, 'gamma': gamma, 'tau1': tau1, 'tau2': tau2, 'gauss_kernel': gauss_ker})
+                peak_params.append({'t_start': t_start, 'height': height, 'gamma': gamma, 'tau1': tau1, 'tau2': tau2, 'g_kernel': gauss_ker })
                 peak_signals.append(peak_signal)
                 peak_integrals.append(np.sum(peak_signal)*self.sampling_time)
             # Sort peak_params, peak_signals, and peak_integrals based on t_start
@@ -136,12 +151,25 @@ class GammaSim:
                 idx = np.random.randint(0, self.size)
         else:
             raise Exception(f"Type for {idx} not allowed")
-        param_string = '\n'.join([str(param) for param in self.__params[idx]])
+        
+        print_params = lambda params, decimal_places=10: '\n'.join(
+            ', '.join(f"{k}: {f'{v:.{decimal_places}f}'.rstrip('0').rstrip('.') if isinstance(v, (int, float)) else v}"
+                    for k, v in param.items() if v is not None) 
+            for param in params
+        )   
+
         fig, axs = plt.subplots(1, 2, figsize=(15, 5))
-        axs[0].set_title(param_string)
+        axs[0].set_title(print_params(self.__params[idx]), fontsize=8)  # Imposta la dimensione del carattere a 10
         axs[0].step(self.__t, self.__dataset[idx], color='tab:blue')
         axs[1].set_title(f'wf_{idx:05d}, \nAreas: {self.__integrals[idx]}')
         axs[1].plot(self.__t, self.__labels[idx], color='tab:red')
+        maxima=find_peaks(self.__labels[idx], prominence=10)
+        
+        if len(maxima[0]) == len(self.__params[idx]):
+            for m, p in zip(maxima[0], self.__params[idx]):
+                axs[1].t_bar(x=m*self.sampling_time, ymin=0, ymax=p['height'], segment_length=self.sampling_time*150, color='tab:blue')
+        else:
+            print(maxima)
         # Fill between non-zero values with 50% transparency
         nonzero_values_labels = self.__labels[idx] >= 1
         print(nonzero_values_labels)
