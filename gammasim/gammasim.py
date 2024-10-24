@@ -112,8 +112,8 @@ class GammaSim:
             self.__tau1         = np.random.uniform(self._cfg.tau1_min, self._cfg.tau1_max, size=(self.__total_size,))
             self.__tau2         = np.random.uniform(self._cfg.tau2_min, self._cfg.tau2_max, size=(self.__total_size,))
             self.__gamma        = np.random.randint(gamma_min, gamma_max, size=(self.__total_size,)) 
-            gauss_ker           = np.random.uniform(self._cfg.gauss_kernel_min, self._cfg.gauss_kernel_max, size=(self.__total_size,))
-            self.__gauss_ker_dt = gauss_ker * self._cfg.sampling_time
+            self.__gauss_ker    = np.random.uniform(self._cfg.gauss_kernel_min, self._cfg.gauss_kernel_max, size=(self.__total_size,))
+            self.__gauss_ker_dt = self.__gauss_ker * self._cfg.sampling_time
         elif self._cfg.wf_shape == 3:
             self.__shape_method = exp.first_ord_exp_decay
             self.__time         = self.__t
