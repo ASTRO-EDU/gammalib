@@ -1,14 +1,16 @@
 import numpy as np
 from math import sqrt
 from scipy.special import erf
+import math
 
 def apply_exp(t,x,t_start,gamma,a):
     y = np.concatenate([np.zeros(t_start),np.floor(gamma*np.exp(a*(t[t_start:]-t_start)))])
     return x + y
 
 def apply_exp_tau(t, x, t_start, gamma, tau1, tau2, sigma):
-    a1 = -(np.log(1/gamma)/tau1)
-    a2 = np.log(1/gamma)/tau2
+    eps = 1    
+    a1 = -(math.log(1/gamma)/tau1)
+    a2 = math.log(1/gamma)/tau2
 
     x_leftzeros  = np.zeros(t_start-tau1)
     x_prepeak    = gamma*np.exp(a1 * (t[t_start-tau1:t_start]-(t_start)))
@@ -48,31 +50,24 @@ def first_ord_exp_decay(t, x, t_start, gamma, tau1, tau2, sigma):
     return x + y
     
 def quantize_signal(input_signal, n_bit, input_min, input_max):
-    # Initialize the output array with zeros
-    output_s = np.zeros_like(input_signal)
-    
+    # Calculate the number of quantization levels and the step size
     n_q = 2**n_bit
-    # Calculate the quantization step size
-    q_interval = input_max - input_min
-    step_size = q_interval / (n_q - 1)
+    step_size = (input_max - input_min) / (n_q - 1)
     
-    # Generate quantization levels (q_values)
+    # Clip the input signal to stay within input_min and input_max
+    input_clipped = np.clip(input_signal, input_min, input_max)
+    
+    # Map the input signal to quantization levels
+    scaled_input = (input_clipped - input_min) / step_size
+    quantized_indices = np.round(scaled_input).astype(int)
+    
+    # Generate quantization levels
     q_values = np.linspace(input_min, input_max, n_q)
     
-    # Perform quantization for each value in the input signal
-    for i in range(len(input_signal)):
-        if input_signal[i] <= input_min:
-            output_s[i] = q_values[0]
-        elif input_signal[i] >= input_max:
-            output_s[i] = q_values[-1]
-        else:
-            # Find the closest quantization level
-            diff = np.abs(q_values - input_signal[i])
-            output_s[i] = q_values[np.argmin(diff)]
+    # Use the quantized indices to get the quantized signal
+    output_s = q_values[quantized_indices]
     
-    return output_s
-
-        
+    return output_s   
 
 def apply_gauss(x, mean, dev):
     x_gauss = np.random.normal(mean, dev, size=x.shape) + x

@@ -7,6 +7,7 @@ from scipy.signal import find_peaks
 from typing import Union
 import plot_utils
 from configuration_parser import ConfigModel
+import time
 
 class GammaSim:
     def __init__(self, configfile_path) -> None:
@@ -20,112 +21,206 @@ class GammaSim:
             self._cfg = ConfigModel(**json.load(configfile))
             print(self._cfg)
         # Imposta gli attributi di self in base ai campi di config
-
         self.__d = np.arange(0, self._cfg.xlen)
         self.__t = self.__d*self._cfg.sampling_time
-
         if self._cfg.gauss_std is None:
             self._cfg.gauss_std = self._cfg.gauss_maxrate * self._cfg.maxcount_value
-        
         if self._cfg.gauss_mean is None:
             self._cfg.gauss_mean = self._cfg.gauss_maxrate * self._cfg.maxcount_value
+        # Set all the simulator attributes
+        self.__dataset            = None
+        self.__labels             = None
+        self.__integrals          = None
+        self.__reshaped_integrals = None
 
-    def __generate_tstarts(self, npeaks, sampling_time):
-        t_starts = [] 
-        while len(t_starts) < npeaks:  
-            # Generate a candidate t_start within the specified range
-            t_start_candidate = np.random.randint(self._cfg.tstart_min, self._cfg.tstart_max)*sampling_time
-            # Check if the candidate is at least delta_tstart away from all existing t_starts
-            if all(abs(t_start_candidate - ts) >= self._cfg.delta_tstart*sampling_time for ts in t_starts):
-                t_starts.append(t_start_candidate) 
-        return t_starts
-
-
-    def generate_dataset(self, F_saturation: bool, F_random_npeaks: bool = False) -> None:
+    ##########################################################################################################################
+    ### 1. GENERATE THE NUMBER OF PEAKS FOR EACH CURVE
+    def __generate_mlist(self, F_random_npeaks: bool = False):
         """
-        Generate the dataset
-        ## Args
-        * F_saturation:
-        """
-        self.__params       = []
-        self.__dataset      = np.empty((self._cfg.size, self._cfg.xlen), dtype=np.int16)
-        self.__labels_split = np.empty((self._cfg.size, self._cfg.max_peaks*self._cfg.xlen))
-        self.__labels       = np.empty((self._cfg.size, self._cfg.xlen))
-        self.__integrals    = np.zeros((self._cfg.size, self._cfg.max_peaks))
-        # Background of the signal
-        x_base = self._cfg.bkgbase_level * np.ones_like(self.__t)
-        # Select gamma_min and gamma_max depending on the saturation flag
-        gamma_min, gamma_max = (self._cfg.gamma_min_wtSat, self._cfg.gamma_max_wtSat) if F_saturation else (self._cfg.gamma_min_noSat, self._cfg.gamma_max_noSat)
+        Generate self.__m_list based on the value of F_random_npeaks.
         
-        gauss_ker = np.random.uniform(self._cfg.gauss_kernel_min, self._cfg.gauss_kernel_max)
-        gauss_ker_dt = gauss_ker*self._cfg.sampling_time
+        Parameters:
+        F_random_npeaks (bool): If True, self.__m_list is generated as an array of random integers 
+                                between 1 and self.max_peaks, with size self.size.
+                                If False, self.__m_list is an array of size self.size, where each 
+                                element is self.max_peaks.
+    
+        self.__m_list: Array generated based on the above condition.
+        """
+        if F_random_npeaks:
+            # Generate an array of random integers between 1 and self.max_peaks
+            self.__m_list = np.random.randint(1, self._cfg.max_peaks + 1, size=self._cfg.size)
+        else:
+            # Create an array of size self.size where each element is self.max_peaks
+            self.__m_list = np.full(self._cfg.size, self._cfg.max_peaks)
+        self.__lookup_table = np.append([0], np.cumsum(self.__m_list))
+        self.__total_size = self.__lookup_table[-1]
+
+    ##########################################################################################################################
+    ### 2. GENERATE PARAMETERS FOR EACH PEAK
+    def __reorder_t_start(self):
+        # Crea una copia di t_start per evitare di modificare direttamente l'array originale
+        reordered_t_start = np.zeros_like(self.__t_start)
+        # Cicla sui sottoinsiemi definiti da lookup_table
+        for i in range(self._cfg.size):
+            # Ottieni gli indici di inizio e fine del sottoinsieme i-esimo
+            start_idx = self.__lookup_table[i]
+            end_idx = self.__lookup_table[i + 1]
+            # Prendi il sottoinsieme corrispondente di t_start e lo ordina
+            reordered_t_start[start_idx:end_idx] = np.sort(self.__t_start[start_idx:end_idx])
+        # Array t_start riordinato
+        self.__t_start = reordered_t_start
+    
+    def __generate_tstart(self, sampling_time):
+        # Inizializza t_start con zeri
+        self.__t_start = np.zeros(self.__total_size, dtype=np.int64)
+        # Definisci le scelte possibili come array 2D (ogni riga è una possibile scelta per un evento)
+        choices = np.tile(np.arange(self._cfg.tstart_min, self._cfg.tstart_max, dtype=np.int16), (self.__total_size, 1))
+        # Loop ridotto solo per il numero massimo di picchi
+        for i in range(max(self.__m_list)):
+            # Ottieni gli indici del picco i-th
+            idxs_peak_ith = self.__lookup_table[:-1] + i
+            idxs_peak_ith = idxs_peak_ith[idxs_peak_ith < self.__lookup_table[1:]]
+            # Genera i filtri per le scelte basati su delta_tstart
+            filter_low = self.__t_start[idxs_peak_ith] - self._cfg.delta_tstart
+            filter_high = self.__t_start[idxs_peak_ith] + self._cfg.delta_tstart
+            # Applica i filtri su tutte le scelte in parallelo con broadcasting
+            mask = (choices[idxs_peak_ith] < filter_low[:, None]) | (choices[idxs_peak_ith] > filter_high[:, None])
+            # Mantieni solo le scelte valide per ogni riga
+            valid_choices = [c[mask_row] for c, mask_row in zip(choices[idxs_peak_ith], mask)]
+            # Genera t_start per i-th peaks selezionando casualmente tra le scelte valide
+            self.__t_start[idxs_peak_ith] = [np.random.choice(vc, 1, replace=False)[0] for vc in valid_choices if len(vc) > 0]
+
+    def __generate_params(self, F_saturation:bool=False):
+        # Get the right range for gamma 
+        gamma_min, gamma_max = (self._cfg.gamma_min_wtSat, self._cfg.gamma_max_wtSat) if F_saturation else (self._cfg.gamma_min_noSat, self._cfg.gamma_max_noSat)
+        self.__x_base = self._cfg.bkgbase_level * np.ones_like(self.__t)
+        
         if self._cfg.wf_shape == 1:
-            shape_method = exp.apply_exp_tau
-            time = self.__d
-            dt = 1
-            tau1    = np.random.randint(self._cfg.tau1_min, self._cfg.tau1_max)
-            tau2    = np.random.randint(self._cfg.tau2_min, self._cfg.tau2_max)
-            gauss_ker = None
-            gauss_ker_dt = None
+            self.__shape_method = exp.apply_exp_tau
+            self.__time         = self.__d.astype(np.int16)
+            self.__dt           = 1
+            self.__tau1         = np.random.randint(self._cfg.tau1_min, self._cfg.tau1_max, size=self.__total_size)
+            self.__tau2         = np.random.randint(self._cfg.tau2_min, self._cfg.tau2_max, size=self.__total_size)
+            self.__gamma        = np.random.randint(gamma_min, gamma_max, size=(self.__total_size,)) 
+            self.__gauss_ker    = np.full(self.__total_size, None)
+            self.__gauss_ker_dt = np.full(self.__total_size, None)
         elif self._cfg.wf_shape == 2:
-            shape_method = exp.second_ord_exp_decay
-            time = self.__t
-            dt=self._cfg.sampling_time
-            tau1    = np.random.uniform(self._cfg.tau1_min, self._cfg.tau1_max)
-            tau2    = np.random.uniform(self._cfg.tau2_min, self._cfg.tau2_max)
+            self.__shape_method = exp.second_ord_exp_decay
+            self.__time         = self.__t
+            self.__dt           = self._cfg.sampling_time
+            self.__tau1         = np.random.uniform(self._cfg.tau1_min, self._cfg.tau1_max, size=(self.__total_size,))
+            self.__tau2         = np.random.uniform(self._cfg.tau2_min, self._cfg.tau2_max, size=(self.__total_size,))
+            self.__gamma        = np.random.randint(gamma_min, gamma_max, size=(self.__total_size,)) 
+            self.__gauss_ker    = np.random.uniform(self._cfg.gauss_kernel_min, self._cfg.gauss_kernel_max, size=(self.__total_size,))
+            self.__gauss_ker_dt = gauss_ker*self._cfg.sampling_time
         elif self._cfg.wf_shape == 3:
-            shape_method = exp.first_ord_exp_decay
-            time = self.__t
-            dt=self._cfg.sampling_time
-            tau1    = None
-            tau2    = np.random.uniform(self._cfg.tau2_min, self._cfg.tau2_max)
-            gauss_ker = None
-            gauss_ker_dt = None
+            self.__shape_method = exp.first_ord_exp_decay
+            self.__time         = self.__t
+            self.__dt           = self._cfg.sampling_time
+            self.__tau1         = np.full(self.__total_size, None)
+            self.__tau2         = np.random.uniform(self._cfg.tau2_min, self._cfg.tau2_max, size=(self.__total_size,))
+            self.__gamma        = np.random.randint(gamma_min, gamma_max, size=(self.__total_size,)) 
+            self.__gauss_ker    = np.full(self.__total_size, None)
+            self.__gauss_ker_dt = np.full(self.__total_size, None)
+        self.__generate_tstart(self.__dt)
+        self.__reorder_t_start()
+        
+    ##########################################################################################################################
+    ### 3. GENERATE CURVES FOR EACH PEAK
+    def __generate_peaksignal(self):
+        # Generate the peak signals with the specified shape method
+        self.__peak_signals = np.zeros((self.__total_size, 
+                                        self._cfg.xlen))
+        self.__height = np.zeros(self.__total_size)
+        for i in tqdm(range(self.__total_size)):
+            self.__peak_signals[i] = self.__shape_method(self.__time, 
+                                                         np.zeros(self._cfg.xlen), 
+                                                         self.__t_start[i], 
+                                                         self.__gamma[i], 
+                                                         self.__tau1[i], 
+                                                         self.__tau2[i], 
+                                                         self.__gauss_ker_dt[i])
+            # Compute signals' height
+            x_max = find_peaks(self.__peak_signals[i])[0][0]
+            self.__height[i] = self.__peak_signals[i][x_max]
+        # Compute signals' area 
+        self.__integrals = np.sum(self.__peak_signals, axis=1)
+        
+    ##########################################################################################################################
+    ### 4. COMPOSE DATASET TO HAVE LABELS 
+    def __generate_labels(self):
+        self.__labels = np.array(
+                            [np.sum(
+                                self.__peak_signals[
+                                    self.__lookup_table[i]:self.__lookup_table[i+1], :
+                            ], axis=0) for i in range(self._cfg.size)])
 
-        for i in tqdm(range(len(self.__dataset))):
-            peak_params        = []
-            peak_signals       = []
-            peak_integrals     = []
-            m = int(np.random.uniform(1, self._cfg.max_peaks, 1)) if F_random_npeaks else self._cfg.max_peaks
-            # Generate the tstart in a safe mode from overlaps
-            tstarts = self.__generate_tstarts(m, dt)
-            # Generate the parameters
-            
-            for j in range(m):
-                gamma   = np.random.randint(gamma_min, gamma_max) 
-                # Generate the parameters
-                
-                t_start = tstarts[j]
-                # Create the peak signal
-                
-                peak_signal  = shape_method(time, np.zeros_like(time), t_start, gamma, tau1, tau2, gauss_ker_dt)
-                x_max = find_peaks(peak_signal)[0][0]
-                height = peak_signal[x_max]
-                # Save metadata
-                peak_params.append({'t_start': t_start, 'height': height, 'gamma': gamma, 'tau1': tau1, 'tau2': tau2, 'g_kernel': gauss_ker })
-                peak_signals.append(peak_signal)
-                peak_integrals.append(np.sum(peak_signal)*self._cfg.sampling_time)
-            # Sort peak_params, peak_signals, and peak_integrals based on t_start
-            sorted_data = sorted(zip(peak_params, peak_signals, peak_integrals), key=lambda x: x[0]['t_start'])
-            peak_params, peak_signals, peak_integrals = zip(*sorted_data)
-            # Save current peak parameters
-            self.__params.append(peak_params)
-            # Add the background to the peak signal
-            x_total = x_base + np.sum(peak_signals, axis=0)
-            # Apply Gauss noise 
-            x_total_noise = exp.apply_gauss(x_total, self._cfg.gauss_mean, self._cfg.gauss_std)
-            # integrals
-            self.__integrals[i][:m] = peak_integrals
-            # apply quantization 
-            x_quantized = exp.quantize_signal(x_total_noise, self._cfg.n_bit_quantization, self._cfg.mincount_value, self._cfg.maxcount_value)
-            # Append dataset
-            self.__dataset[i] = x_quantized
-            # Combine labels
-            # NOTE: TO TAKE UNDER CONTROL MEMORY CONS. COMMENTS THESE LINES
-            self.__labels[i] = np.sum(peak_signals, axis=0)
-            peak_signals = np.concatenate(peak_signals)
-            self.__labels_split[i, :len(peak_signals)] = peak_signals
+    ##########################################################################################################################
+    ### 5. APPLY GAUSS NOISE  
+    def __generate_dataset_noise(self):
+        # Apply Gauss noise 
+        labels_noise = exp.apply_gauss(self.__labels + self.__x_base[None, :], 
+                                       self._cfg.gauss_mean, self._cfg.gauss_std)
+        # Apply quantization
+        self.__dataset = np.array(
+            [exp.quantize_signal(labels_noise[i], 
+                                 self._cfg.n_bit_quantization, 
+                                 self._cfg.mincount_value, 
+                                 self._cfg.maxcount_value) for i in range(self._cfg.size)], 
+            dtype=np.int16)
+    
+    ##########################################################################################################################
+    ##########################################################################################################################
 
+    def __reshape_integrals(self):
+        if self.__reshaped_integrals == None:
+            # Initialize an array of zeros with the desired shape
+            reshaped_integrals = np.zeros((self._cfg.size, self._cfg.max_peaks))
+            # Loop over each subset defined by lookup_table and fill the reshaped array
+            for i in range(self._cfg.size):
+                # Calculate the start and end indices for the current subset in integrals
+                start_idx = self.__lookup_table[i]
+                end_idx = self.__lookup_table[i+1]
+                # Fill the row with the corresponding integrals, adding zeros if needed
+                reshaped_integrals[i, :end_idx-start_idx] = self.__integrals[start_idx:end_idx]
+        return reshaped_integrals
+
+    def __params(self, idx_sample:int=0):
+        # {'t_start': t_start, 'height': height, 'gamma': gamma, 'tau1': tau1, 'tau2': tau2, 'g_kernel': gauss_ker}
+        start = self.__lookup_table[idx_sample]
+        stop = self.__lookup_table[idx_sample + 1]
+        params = [{'t_start': self.__t_start[i], 
+                   'height': self.__height[i], 
+                   'gamma': self.__gamma[i], 
+                   'tau1': self.__tau1[i],
+                   'tau2': self.__tau2[i],
+                   'g_kernel': self.__gauss_ker[i]} for i in range(start, stop)]
+        return params
+
+    def get_dataset(self):
+        return self.__dataset
+
+    def get_labels(self):
+        return self.__labels
+    
+    def get_labelsSplit(self):
+        return self.__peak_signals
+    
+    def get_areas(self):
+        return self.__integrals
+
+    def get_params(self):
+        return [self.__params(i) for i in range(self.__total_size)]
+    
+    def get_sampling_time(self):
+        return self._cfg.sampling_time
+    
+    def get_shape_method(self):
+        return self._cfg.wf_shape
+    
+    ##########################################################################################################################
+    ##########################################################################################################################
     def plot_wf(self, idx: Union[int, str] ='random') -> None:
         """
         Plot a single waveform from the dataset with its generation parameters:
@@ -141,9 +236,9 @@ class GammaSim:
             pass
         elif type(idx) == str:
             if idx == "max":
-                idx = np.argmax(np.sum(self.__integrals, axis=1))
+                idx = np.argmax(np.sum(self.__reshape_integrals(), axis=1))
             elif idx == "min":
-                idx = np.argmin(np.sum(self.__integrals, axis=1))
+                idx = np.argmin(np.sum(self.__reshape_integrals(), axis=1))
             elif idx == "random":
                 idx = np.random.randint(0, self._cfg.size)
         else:
@@ -156,14 +251,14 @@ class GammaSim:
         )   
 
         fig, axs = plt.subplots(1, 2, figsize=(15, 5))
-        axs[0].set_title(print_params(self.__params[idx]), fontsize=8)  # Imposta la dimensione del carattere a 10
+        axs[0].set_title(print_params(self.__params(idx)), fontsize=8)  # Imposta la dimensione del carattere a 10
         axs[0].step(self.__t, self.__dataset[idx], color='tab:blue')
-        axs[1].set_title(f'wf_{idx:05d}, \nAreas: {self.__integrals[idx]}')
+        axs[1].set_title(f'wf_{idx:05d}, \nAreas: {np.round(self.__reshape_integrals()[idx], 2)}')
         axs[1].plot(self.__t, self.__labels[idx], color='tab:red')
         maxima=find_peaks(self.__labels[idx], prominence=10)
         
-        if len(maxima[0]) == len(self.__params[idx]):
-            for m, p in zip(maxima[0], self.__params[idx]):
+        if len(maxima[0]) == len(self.__params(idx)):
+            for m, p in zip(maxima[0], self.__params(idx)):
                 axs[1].t_bar(x=m*self._cfg.sampling_time, ymin=0, ymax=p['height'], segment_length=self._cfg.sampling_time*150, color='tab:blue')
         else:
             print(maxima)
@@ -178,23 +273,52 @@ class GammaSim:
         # plt.tight_layout()
         plt.show()
 
-    def get_dataset(self):
-        return self.__dataset
+    ##########################################################################################################################
+    ##########################################################################################################################
+    
+    def generate_dataset(self, F_saturation: bool, F_random_npeaks: bool = False) -> None:
+        total_start_time = time.time()
+        # Step 1:
+        start_time = time.time()
+        print("STEP 1: number of peaks for each sample generation")
+        print('start_time:', f"{start_time:.6f}")
+        # print('delta_tstart', self._cfg.delta_tstart)
+        self.__generate_mlist(F_random_npeaks)
+        stop_time = time.time()
+        print('stop_time: ', f"{stop_time:.6f}, total time for this step = {stop_time-start_time:.8f}\n")
+        
+        # Step 2:
+        start_time = time.time()
+        print("STEP 2: parameters generation")
+        print('start_time:', f"{start_time:.6f}")
+        self.__generate_params(F_saturation)
+        stop_time = time.time()
+        print('stop_time: ', f"{stop_time:.6f}, total time for this step = {stop_time-start_time:.8f}\n")
 
-    def get_labels(self):
-        return self.__labels
-    
-    def get_labelsSplit(self):
-        return self.__labels_split
-    
-    def get_areas(self):
-        return self.__integrals
+        # Step 3:
+        start_time = time.time()
+        print("STEP 3: peaks' signals generation")
+        print('start_time:', f"{start_time:.6f}")
+        self.__generate_peaksignal()
+        stop_time = time.time()
+        print('stop_time: ', f"{stop_time:.6f}, total time for this step = {stop_time-start_time:.8f}\n")
 
-    def get_params(self):
-        return self.__params
-    
-    def get_sampling_time(self):
-        return self._cfg.sampling_time
-    
-    def get_shape_method(self):
-        return self._cfg.wf_shape
+        # Step 4:
+        start_time = time.time()
+        print("STEP 4: labels generation")
+        print('start_time:', f"{start_time:.6f}")
+        self.__generate_labels()
+        stop_time = time.time()
+        print('stop_time: ', f"{stop_time:.6f}, total time for this step = {stop_time-start_time:.8f}\n")        
+
+        # Step 5:
+        start_time = time.time()
+        print("STEP 5: applying noise to dataset")
+        print('start_time:', f"{start_time:.6f}")
+        self.__generate_dataset_noise()
+        stop_time = time.time()
+        print('stop_time: ', f"{stop_time:.6f}, total time for this step = {stop_time-start_time:.8f}\n")   
+        
+        total_stop_time = time.time()
+        print(f"TOTAL TIME FOR GENERATE DATASET = {total_stop_time-total_start_time:.8f}\n")
+        print(self.__labels.shape)
