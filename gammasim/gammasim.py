@@ -20,9 +20,9 @@ class GammaSim:
             
             self._cfg = ConfigModel(**json.load(configfile))
             print(self._cfg)
-        # Imposta gli attributi di self in base ai campi di config
-        self.__d = np.arange(0, self._cfg.xlen)
-        self.__t = self.__d*self._cfg.sampling_time
+        # Set self attributes based on config fields
+        self.__d = np.arange(0, self._cfg.xlen, dtype=np.int16)
+        self.__t = self.__d * self._cfg.sampling_time
         if self._cfg.gauss_std is None:
             self._cfg.gauss_std = self._cfg.gauss_maxrate * self._cfg.maxcount_value
         if self._cfg.gauss_mean is None:
@@ -69,26 +69,26 @@ class GammaSim:
             # Prendi il sottoinsieme corrispondente di t_start e lo ordina
             reordered_t_start[start_idx:end_idx] = np.sort(self.__t_start[start_idx:end_idx])
         # Array t_start riordinato
-        self.__t_start = reordered_t_start
+        self.__t_start = reordered_t_start * self.__dt
     
     def __generate_tstart(self, sampling_time):
-        # Inizializza t_start con zeri
+        # Initialize t_start with zeros
         self.__t_start = np.zeros(self.__total_size, dtype=np.int64)
-        # Definisci le scelte possibili come array 2D (ogni riga è una possibile scelta per un evento)
+        # Define the possible choices as a 2D array (each row is a possible choice for an event)
         choices = np.tile(np.arange(self._cfg.tstart_min, self._cfg.tstart_max, dtype=np.int16), (self.__total_size, 1))
-        # Loop ridotto solo per il numero massimo di picchi
+        # Loop reduced only for maximum number of peaks
         for i in range(max(self.__m_list)):
-            # Ottieni gli indici del picco i-th
+            # Get the i-th peak indices
             idxs_peak_ith = self.__lookup_table[:-1] + i
             idxs_peak_ith = idxs_peak_ith[idxs_peak_ith < self.__lookup_table[1:]]
-            # Genera i filtri per le scelte basati su delta_tstart
+            # Generate filters for choices based on delta_tstart
             filter_low = self.__t_start[idxs_peak_ith] - self._cfg.delta_tstart
             filter_high = self.__t_start[idxs_peak_ith] + self._cfg.delta_tstart
-            # Applica i filtri su tutte le scelte in parallelo con broadcasting
+            # Apply filters on all choices in parallel with broadcasting
             mask = (choices[idxs_peak_ith] < filter_low[:, None]) | (choices[idxs_peak_ith] > filter_high[:, None])
-            # Mantieni solo le scelte valide per ogni riga
+            # Keep only valid choices for each row
             valid_choices = [c[mask_row] for c, mask_row in zip(choices[idxs_peak_ith], mask)]
-            # Genera t_start per i-th peaks selezionando casualmente tra le scelte valide
+            # Generate t_start for i-th peaks by randomly selecting from valid choices
             self.__t_start[idxs_peak_ith] = [np.random.choice(vc, 1, replace=False)[0] for vc in valid_choices if len(vc) > 0]
 
     def __generate_params(self, F_saturation:bool=False):
@@ -98,7 +98,7 @@ class GammaSim:
         
         if self._cfg.wf_shape == 1:
             self.__shape_method = exp.apply_exp_tau
-            self.__time         = self.__d.astype(np.int16)
+            self.__time         = self.__d
             self.__dt           = 1
             self.__tau1         = np.random.randint(self._cfg.tau1_min, self._cfg.tau1_max, size=self.__total_size)
             self.__tau2         = np.random.randint(self._cfg.tau2_min, self._cfg.tau2_max, size=self.__total_size)
@@ -112,8 +112,8 @@ class GammaSim:
             self.__tau1         = np.random.uniform(self._cfg.tau1_min, self._cfg.tau1_max, size=(self.__total_size,))
             self.__tau2         = np.random.uniform(self._cfg.tau2_min, self._cfg.tau2_max, size=(self.__total_size,))
             self.__gamma        = np.random.randint(gamma_min, gamma_max, size=(self.__total_size,)) 
-            self.__gauss_ker    = np.random.uniform(self._cfg.gauss_kernel_min, self._cfg.gauss_kernel_max, size=(self.__total_size,))
-            self.__gauss_ker_dt = gauss_ker*self._cfg.sampling_time
+            gauss_ker           = np.random.uniform(self._cfg.gauss_kernel_min, self._cfg.gauss_kernel_max, size=(self.__total_size,))
+            self.__gauss_ker_dt = gauss_ker * self._cfg.sampling_time
         elif self._cfg.wf_shape == 3:
             self.__shape_method = exp.first_ord_exp_decay
             self.__time         = self.__t
