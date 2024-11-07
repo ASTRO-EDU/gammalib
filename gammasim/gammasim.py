@@ -8,6 +8,7 @@ from typing import Union
 import plot_utils
 from configuration_parser import ConfigModel
 import time
+from typing import Optional
 
 class GammaSim:
     def __init__(self, configfile_path) -> None:
@@ -91,11 +92,11 @@ class GammaSim:
             # Generate t_start for i-th peaks by randomly selecting from valid choices
             self.__t_start[idxs_peak_ith] = [np.random.choice(vc, 1, replace=False)[0] for vc in valid_choices if len(vc) > 0]
 
-    def __generate_params(self, F_saturation:bool=False):
-        # Get the right range for gamma 
-        gamma_min, gamma_max = (self._cfg.gamma_min_wtSat, self._cfg.gamma_max_wtSat) if F_saturation else (self._cfg.gamma_min_noSat, self._cfg.gamma_max_noSat)
+    def __generate_params(self):
         self.__x_base = self._cfg.bkgbase_level * np.ones_like(self.__t)
-        
+        self.__gamma            = np.random.choice(a=self.peak_values_poss, 
+                                                   size=(self.__total_size,),
+                                                   p=self.peak_value_distr)
         if self._cfg.wf_shape == 1:
             self.__shape_method = exp.apply_exp_tau
             self.__time         = self.__d
@@ -103,7 +104,6 @@ class GammaSim:
             self.__dt           = 1
             self.__tau1         = np.random.randint(self._cfg.tau1_min, self._cfg.tau1_max, size=self.__total_size)
             self.__tau2         = np.random.randint(self._cfg.tau2_min, self._cfg.tau2_max, size=self.__total_size)
-            self.__gamma        = np.random.randint(gamma_min, gamma_max, size=(self.__total_size,)) 
             self.__gauss_ker    = np.full(self.__total_size, None)
             self.__gauss_ker_dt = np.full(self.__total_size, None)
             self.__p            = np.full(self.__total_size, None)
@@ -114,7 +114,6 @@ class GammaSim:
             self.__dt           = self._cfg.sampling_time
             self.__tau1         = np.random.uniform(self._cfg.tau1_min, self._cfg.tau1_max, size=(self.__total_size,))
             self.__tau2         = np.random.uniform(self._cfg.tau2_min, self._cfg.tau2_max, size=(self.__total_size,))
-            self.__gamma        = np.random.randint(gamma_min, gamma_max, size=(self.__total_size,)) 
             self.__gauss_ker    = np.random.uniform(self._cfg.gauss_kernel_min, self._cfg.gauss_kernel_max, size=(self.__total_size,))
             self.__gauss_ker_dt = self.__gauss_ker * self._cfg.sampling_time
             self.__p            = np.full(self.__total_size, None)
@@ -125,7 +124,6 @@ class GammaSim:
             self.__dt           = self._cfg.sampling_time
             self.__tau1         = np.full(self.__total_size, None)
             self.__tau2         = np.random.uniform(self._cfg.tau2_min, self._cfg.tau2_max, size=(self.__total_size,))
-            self.__gamma        = np.random.randint(gamma_min, gamma_max, size=(self.__total_size,)) 
             self.__gauss_ker    = np.full(self.__total_size, None)
             self.__gauss_ker_dt = np.full(self.__total_size, None)
             self.__p            = np.full(self.__total_size, None)
@@ -137,7 +135,6 @@ class GammaSim:
             self.__dt           = self._cfg.sampling_time
             self.__tau1         = np.random.uniform(self._cfg.tau1_min, self._cfg.tau1_max, size=(self.__total_size,))
             self.__tau2         = np.random.uniform(self._cfg.tau2_min, self._cfg.tau2_max, size=(self.__total_size,))
-            self.__gamma        = np.random.randint(gamma_min, gamma_max, size=(self.__total_size,)) 
             self.__gauss_ker    = np.full(self.__total_size, None)
             self.__gauss_ker_dt = np.full(self.__total_size, None)
             self.__p            = np.random.uniform(self._cfg.p_min, self._cfg.p_max, size=(self.__total_size,))
@@ -299,7 +296,26 @@ class GammaSim:
     ##########################################################################################################################
     ##########################################################################################################################
     
-    def generate_dataset(self, F_saturation: bool, F_random_npeaks: bool = False) -> None:
+    def generate_dataset(self, 
+                         F_saturation: bool=False, 
+                         F_random_npeaks: bool = False, 
+                         peak_value_distr: Optional[np.ndarray[np.float64]]=None) -> None:
+        
+        # F_random_npeaks => (peak_value_distr == None)
+        assert (not F_random_npeaks) or (peak_value_distr is None)
+        
+        # Get the right range for gamma 
+        gamma_min, gamma_max = (self._cfg.gamma_min_wtSat, self._cfg.gamma_max_wtSat) if F_saturation else (self._cfg.gamma_min_noSat, self._cfg.gamma_max_noSat)
+        # Define possibilities for peak_values
+        self.peak_values_poss = np.linspace(gamma_min, gamma_max, 1)
+        # If peak value distribution is specified 
+        if peak_value_distr is None:
+            # Otherwise is uniform distribution
+            self.peak_value_distr = np.ones_like(self.peak_values_poss) 
+            
+        # (peak_value_distr != None) => peak_value_distr.len() == peak_value_linspace.len()
+        assert (not (self.peak_value_distr is None)) or (len(self.peak_value_distr) == len(self.peak_values_poss))
+        
         total_start_time = time.time()
         # Step 1:
         start_time = time.time()
@@ -314,7 +330,7 @@ class GammaSim:
         start_time = time.time()
         print("STEP 2: parameters generation")
         print('start_time:', f"{start_time:.6f}")
-        self.__generate_params(F_saturation)
+        self.__generate_params()
         stop_time = time.time()
         print('stop_time: ', f"{stop_time:.6f}, total time for this step = {stop_time-start_time:.8f}\n")
 
