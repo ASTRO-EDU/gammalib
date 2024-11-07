@@ -23,5 +23,7 @@
     "tau2_min": 6e-6,
     "tau2_max": 7e-6,
     "gauss_kernel_min" : 0,
-    "gauss_kernel_max" : 0
+    "gauss_kernel_max" : 0,
+    "p_min" : 0.0,
+    "p_max" : 0.0
 }

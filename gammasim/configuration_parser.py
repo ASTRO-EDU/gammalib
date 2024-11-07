@@ -28,6 +28,8 @@ class ConfigModel(BaseModel):
     tau2_max: Annotated[Union[int, float], Field(ge=0)]  # Massimo tempo per raggiungere il livello di fondo
     gauss_kernel_min: Annotated[float, Field(ge=0)]  # Kernel Gaussiano minimo
     gauss_kernel_max: Annotated[float, Field(ge=0)]  # Kernel Gaussiano massimo
+    p_min: Annotated[float, Field(ge=0)]  # p minimo
+    p_max: Annotated[float, Field(ge=0)]  # p massimo
 
     # Validazione per gauss_std e gauss_mean: se sono "none", usiamo `gauss_maxrate` per il calcolo
     @field_validator('gauss_std', 'gauss_mean', mode='before')

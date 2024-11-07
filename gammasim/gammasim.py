@@ -19,7 +19,7 @@ class GammaSim:
         with open(configfile_path, 'r') as configfile:
             
             self._cfg = ConfigModel(**json.load(configfile))
-            print(self._cfg)
+        print(self._cfg)
         # Set self attributes based on config fields
         self.__d = np.arange(0, self._cfg.xlen, dtype=np.int16)
         self.__t = self.__d * self._cfg.sampling_time
@@ -99,30 +99,48 @@ class GammaSim:
         if self._cfg.wf_shape == 1:
             self.__shape_method = exp.apply_exp_tau
             self.__time         = self.__d
+            self.__baseline     = np.zeros(self._cfg.xlen)
             self.__dt           = 1
             self.__tau1         = np.random.randint(self._cfg.tau1_min, self._cfg.tau1_max, size=self.__total_size)
             self.__tau2         = np.random.randint(self._cfg.tau2_min, self._cfg.tau2_max, size=self.__total_size)
             self.__gamma        = np.random.randint(gamma_min, gamma_max, size=(self.__total_size,)) 
             self.__gauss_ker    = np.full(self.__total_size, None)
             self.__gauss_ker_dt = np.full(self.__total_size, None)
+            self.__p            = np.full(self.__total_size, None)
         elif self._cfg.wf_shape == 2:
             self.__shape_method = exp.second_ord_exp_decay
             self.__time         = self.__t
+            self.__baseline     = np.zeros(self._cfg.xlen)
             self.__dt           = self._cfg.sampling_time
             self.__tau1         = np.random.uniform(self._cfg.tau1_min, self._cfg.tau1_max, size=(self.__total_size,))
             self.__tau2         = np.random.uniform(self._cfg.tau2_min, self._cfg.tau2_max, size=(self.__total_size,))
             self.__gamma        = np.random.randint(gamma_min, gamma_max, size=(self.__total_size,)) 
             self.__gauss_ker    = np.random.uniform(self._cfg.gauss_kernel_min, self._cfg.gauss_kernel_max, size=(self.__total_size,))
             self.__gauss_ker_dt = self.__gauss_ker * self._cfg.sampling_time
+            self.__p            = np.full(self.__total_size, None)
         elif self._cfg.wf_shape == 3:
             self.__shape_method = exp.first_ord_exp_decay
             self.__time         = self.__t
+            self.__baseline     = np.zeros(self._cfg.xlen)
             self.__dt           = self._cfg.sampling_time
             self.__tau1         = np.full(self.__total_size, None)
             self.__tau2         = np.random.uniform(self._cfg.tau2_min, self._cfg.tau2_max, size=(self.__total_size,))
             self.__gamma        = np.random.randint(gamma_min, gamma_max, size=(self.__total_size,)) 
             self.__gauss_ker    = np.full(self.__total_size, None)
             self.__gauss_ker_dt = np.full(self.__total_size, None)
+            self.__p            = np.full(self.__total_size, None)
+        # TODO: da aggiungere metodo 4
+        elif self._cfg.wf_shape == 4:
+            self.__shape_method = exp.orsa_pulse_fitting
+            self.__time         = self.__t
+            self.__baseline     = 0.0
+            self.__dt           = self._cfg.sampling_time
+            self.__tau1         = np.random.uniform(self._cfg.tau1_min, self._cfg.tau1_max, size=(self.__total_size,))
+            self.__tau2         = np.random.uniform(self._cfg.tau2_min, self._cfg.tau2_max, size=(self.__total_size,))
+            self.__gamma        = np.random.randint(gamma_min, gamma_max, size=(self.__total_size,)) 
+            self.__gauss_ker    = np.full(self.__total_size, None)
+            self.__gauss_ker_dt = np.full(self.__total_size, None)
+            self.__p            = np.random.uniform(self._cfg.p_min, self._cfg.p_max, size=(self.__total_size,))
         self.__generate_tstart(self.__dt)
         self.__reorder_t_start()
         
@@ -135,12 +153,13 @@ class GammaSim:
         self.__height = np.zeros(self.__total_size)
         for i in tqdm(range(self.__total_size)):
             self.__peak_signals[i] = self.__shape_method(self.__time, 
-                                                         np.zeros(self._cfg.xlen), 
+                                                         self.__baseline, 
                                                          self.__t_start[i], 
                                                          self.__gamma[i], 
                                                          self.__tau1[i], 
                                                          self.__tau2[i], 
-                                                         self.__gauss_ker_dt[i])
+                                                         self.__gauss_ker_dt[i],
+                                                         self.__p[i])
             # Compute signals' height
             x_max = find_peaks(self.__peak_signals[i])[0][0]
             self.__height[i] = self.__peak_signals[i][x_max]
@@ -255,6 +274,10 @@ class GammaSim:
         axs[0].step(self.__t, self.__dataset[idx], color='tab:blue')
         axs[1].set_title(f'wf_{idx:05d}, \nAreas: {np.round(self.__reshape_integrals()[idx], 2)}')
         axs[1].plot(self.__t, self.__labels[idx], color='tab:red')
+        axs[0].set_ylabel("counts")
+        axs[1].set_ylabel("counts")
+        axs[0].set_xlabel(f"time - bin {self._cfg.sampling_time} sec")
+        axs[1].set_xlabel(f"time - bin {self._cfg.sampling_time} sec")
         maxima=find_peaks(self.__labels[idx], prominence=10)
         
         if len(maxima[0]) == len(self.__params(idx)):
@@ -264,7 +287,7 @@ class GammaSim:
             print(maxima)
         # Fill between non-zero values with 50% transparency
         nonzero_values_labels = self.__labels[idx] >= 1
-        print(nonzero_values_labels)
+        #print(nonzero_values_labels)
         axs[1].fill_between(self.__t, 0, max(self.__labels[idx]), where=nonzero_values_labels, color='tab:red', alpha=0.35)
         # Calculate length of filled areas along x-axis
         length_fill = np.sum(nonzero_values_labels)
