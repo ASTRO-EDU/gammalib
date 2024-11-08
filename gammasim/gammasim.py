@@ -18,9 +18,8 @@ class GammaSim:
         * `configfile_path`: configuration file
         """
         with open(configfile_path, 'r') as configfile:
-            
             self._cfg = ConfigModel(**json.load(configfile))
-        print(self._cfg)
+        
         # Set self attributes based on config fields
         self.__d = np.arange(0, self._cfg.xlen, dtype=np.int16)
         self.__t = self.__d * self._cfg.sampling_time
@@ -307,14 +306,16 @@ class GammaSim:
         # Get the right range for gamma 
         gamma_min, gamma_max = (self._cfg.gamma_min_wtSat, self._cfg.gamma_max_wtSat) if F_saturation else (self._cfg.gamma_min_noSat, self._cfg.gamma_max_noSat)
         # Define possibilities for peak_values
-        self.peak_values_poss = np.linspace(gamma_min, gamma_max, 1)
+        self.peak_values_poss = np.linspace(gamma_min, gamma_max, num=gamma_max-gamma_min)
         # If peak value distribution is specified 
         if peak_value_distr is None:
             # Otherwise is uniform distribution
-            self.peak_value_distr = np.ones_like(self.peak_values_poss) 
+            self.peak_value_distr = np.ones_like(self.peak_values_poss) / len(self.peak_values_poss)
+        else:
+            self.peak_value_distr = peak_value_distr
             
         # (peak_value_distr != None) => peak_value_distr.len() == peak_value_linspace.len()
-        assert (not (self.peak_value_distr is None)) or (len(self.peak_value_distr) == len(self.peak_values_poss))
+        assert (self.peak_value_distr is None) or (len(self.peak_value_distr) == len(self.peak_values_poss))
         
         total_start_time = time.time()
         # Step 1:
