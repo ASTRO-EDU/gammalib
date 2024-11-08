@@ -292,6 +292,23 @@ class GammaSim:
         # plt.tight_layout()
         plt.show()
 
+    def plot_gamma_distribution(self):
+        """
+        Plot the distribution of gamma values in self._gamma.
+        """
+        # Calculate the histogram of gamma values
+        gamma_values, gamma_counts = np.unique(self.__gamma, return_counts=True)
+        # Plotting with centered ticks
+        plt.figure(figsize=(10, 5))
+        plt.bar(gamma_values, gamma_counts, width=1, color='skyblue', edgecolor='black')  # Shift bars by 0.5
+        plt.xticks(gamma_values)  # Set the x-ticks to be the gamma values
+        plt.xlabel("Gamma Values")
+        plt.ylabel("Frequency")
+        plt.title("Distribution of Gamma Values")
+        plt.grid(axis="y", linestyle="--", alpha=0.7)
+        plt.show()
+
+    
     ##########################################################################################################################
     ##########################################################################################################################
     
@@ -299,66 +316,74 @@ class GammaSim:
                          F_saturation: bool=False, 
                          F_random_npeaks: bool = False, 
                          peak_value_distr: Optional[np.ndarray[np.float64]]=None) -> None:
-        
-        # F_random_npeaks => (peak_value_distr == None)
+        """
+        Generates a dataset of peak signals and corresponding labels, with options for peak distribution and saturation.
+    
+        Parameters:
+            F_saturation (bool): Specifies whether to use gamma with saturation or not.
+            F_random_npeaks (bool): Specifies whether to generate a random number of peaks per sample.
+            peak_value_distr (np.ndarray, optional): Distribution of peak values. If None, a uniform distribution is used.
+        """
+        # Ensures that if F_random_npeaks is selected, the peak value distribution (peak_value_distr) must be None
         assert (not F_random_npeaks) or (peak_value_distr is None)
         
-        # Get the right range for gamma 
+        # Set the gamma range based on the saturation flag
         gamma_min, gamma_max = (self._cfg.gamma_min_wtSat, self._cfg.gamma_max_wtSat) if F_saturation else (self._cfg.gamma_min_noSat, self._cfg.gamma_max_noSat)
-        # Define possibilities for peak_values
-        self.peak_values_poss = np.linspace(gamma_min, gamma_max, num=gamma_max-gamma_min)
-        # If peak value distribution is specified 
+        
+        # Define possible peak values as a sequence between gamma_min and gamma_max
+        self.peak_values_poss = np.linspace(gamma_min, gamma_max, num=gamma_max - gamma_min+1)
+        # If a peak value distribution is provided, use it; otherwise, default to a uniform distribution
         if peak_value_distr is None:
-            # Otherwise is uniform distribution
+            # Set a uniform distribution across possible peak values
             self.peak_value_distr = np.ones_like(self.peak_values_poss) / len(self.peak_values_poss)
         else:
             self.peak_value_distr = peak_value_distr
-            
-        # (peak_value_distr != None) => peak_value_distr.len() == peak_value_linspace.len()
+        # Assert that if a peak value distribution is provided, its length must match the length of peak_values_poss
         assert (self.peak_value_distr is None) or (len(self.peak_value_distr) == len(self.peak_values_poss))
         
         total_start_time = time.time()
-        # Step 1:
+        
+        # Step 1: Generate the number of peaks for each sample
         start_time = time.time()
-        print("STEP 1: number of peaks for each sample generation")
+        print("STEP 1: Generating the number of peaks for each sample")
         print('start_time:', f"{start_time:.6f}")
-        # print('delta_tstart', self._cfg.delta_tstart)
         self.__generate_mlist(F_random_npeaks)
         stop_time = time.time()
         print('stop_time: ', f"{stop_time:.6f}, total time for this step = {stop_time-start_time:.8f}\n")
         
-        # Step 2:
+        # Step 2: Generate parameters for each peak
         start_time = time.time()
-        print("STEP 2: parameters generation")
+        print("STEP 2: Generating parameters for each peak")
         print('start_time:', f"{start_time:.6f}")
         self.__generate_params()
         stop_time = time.time()
         print('stop_time: ', f"{stop_time:.6f}, total time for this step = {stop_time-start_time:.8f}\n")
-
-        # Step 3:
+    
+        # Step 3: Generate signals for each peak
         start_time = time.time()
-        print("STEP 3: peaks' signals generation")
+        print("STEP 3: Generating signals for each peak")
         print('start_time:', f"{start_time:.6f}")
         self.__generate_peaksignal()
         stop_time = time.time()
         print('stop_time: ', f"{stop_time:.6f}, total time for this step = {stop_time-start_time:.8f}\n")
-
-        # Step 4:
+    
+        # Step 4: Generate labels for each sample
         start_time = time.time()
-        print("STEP 4: labels generation")
+        print("STEP 4: Generating labels")
         print('start_time:', f"{start_time:.6f}")
         self.__generate_labels()
         stop_time = time.time()
         print('stop_time: ', f"{stop_time:.6f}, total time for this step = {stop_time-start_time:.8f}\n")        
-
-        # Step 5:
+    
+        # Step 5: Apply noise to the dataset
         start_time = time.time()
-        print("STEP 5: applying noise to dataset")
+        print("STEP 5: Applying noise to dataset")
         print('start_time:', f"{start_time:.6f}")
         self.__generate_dataset_noise()
         stop_time = time.time()
         print('stop_time: ', f"{stop_time:.6f}, total time for this step = {stop_time-start_time:.8f}\n")   
         
+        # Print total execution time for generating the dataset
         total_stop_time = time.time()
         print(f"TOTAL TIME FOR GENERATE DATASET = {total_stop_time-total_start_time:.8f}\n")
         print(self.__labels.shape)
