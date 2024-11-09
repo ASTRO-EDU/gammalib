@@ -53,7 +53,8 @@ class GammaSim:
         else:
             # Create an array of size self.size where each element is self.max_peaks
             self.__m_list = np.full(self._cfg.size, self._cfg.max_peaks)
-        self.__lookup_table = np.append([0], np.cumsum(self.__m_list))
+        tmp_lookup_tb = np.cumsum(self.__m_list)
+        self.__lookup_table = np.append([0], tmp_lookup_tb)
         self.__total_size = self.__lookup_table[-1]
 
     ##########################################################################################################################
@@ -76,20 +77,31 @@ class GammaSim:
         self.__t_start = np.zeros(self.__total_size, dtype=np.int64)
         # Define the possible choices as a 2D array (each row is a possible choice for an event)
         choices = np.tile(np.arange(self._cfg.tstart_min, self._cfg.tstart_max, dtype=np.int16), (self.__total_size, 1))
-        # Loop reduced only for maximum number of peaks
+        
+        # Loop for each peak
         for i in range(max(self.__m_list)):
-            # Get the i-th peak indices
+            # Get indices of the i-th peak for each event
             idxs_peak_ith = self.__lookup_table[:-1] + i
             idxs_peak_ith = idxs_peak_ith[idxs_peak_ith < self.__lookup_table[1:]]
-            # Generate filters for choices based on delta_tstart
-            filter_low = self.__t_start[idxs_peak_ith] - self._cfg.delta_tstart
-            filter_high = self.__t_start[idxs_peak_ith] + self._cfg.delta_tstart
-            # Apply filters on all choices in parallel with broadcasting
-            mask = (choices[idxs_peak_ith] < filter_low[:, None]) | (choices[idxs_peak_ith] > filter_high[:, None])
-            # Keep only valid choices for each row
-            valid_choices = [c[mask_row] for c, mask_row in zip(choices[idxs_peak_ith], mask)]
+            
+            # For each index, generate a t_start that respects delta_tstart
+            for idx in idxs_peak_ith:
+                # Create a mask to exclude choices within delta_tstart of already chosen t_start values
+                mask = (choices[idx] < self.__t_start[idx] - self._cfg.delta_tstart) | \
+                       (choices[idx] > self.__t_start[idx] + self._cfg.delta_tstart)
+                
+                # Apply the mask to get only valid choices, ensuring valid_choices is an array
+                valid_choices = np.atleast_1d(choices[idx][mask])
+                
+                # Check if there are valid choices available
+                if len(valid_choices) > 0:
+                    # Randomly select a valid choice for t_start
+                    self.__t_start[idx] = np.random.choice(valid_choices, 1, replace=False)[0]
+                else:
+                    # Raise an error if no valid choices remain
+                    raise ValueError(f"Non ci sono scelte valide per `t_start` per l'evento con indice {idx}.")
             # Generate t_start for i-th peaks by randomly selecting from valid choices
-            self.__t_start[idxs_peak_ith] = [np.random.choice(vc, 1, replace=False)[0] for vc in valid_choices if len(vc) > 0]
+            #self.__t_start[idxs_peak_ith] = [np.random.choice(vc, 1, replace=False)[0] for vc in valid_choices if len(vc) > 0]
 
     def __generate_params(self):
         self.__x_base = self._cfg.bkgbase_level * np.ones_like(self.__t)
@@ -226,7 +238,7 @@ class GammaSim:
         return self.__integrals
 
     def get_params(self):
-        return [self.__params(i) for i in range(self.__total_size)]
+        return [self.__params(i) for i in range(self._cfg.size)]
     
     def get_sampling_time(self):
         return self._cfg.sampling_time
