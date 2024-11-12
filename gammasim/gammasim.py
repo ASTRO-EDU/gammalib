@@ -71,7 +71,8 @@ class GammaSim:
             reordered_t_start[start_idx:end_idx] = np.sort(self.__t_start[start_idx:end_idx])
         # Array t_start riordinato
         self.__t_start = reordered_t_start * self.__dt
-    
+
+    """
     def __generate_tstart(self, sampling_time):
         # Initialize t_start with zeros
         self.__t_start = np.zeros(self.__total_size, dtype=np.int64)
@@ -102,6 +103,34 @@ class GammaSim:
                     raise ValueError(f"Non ci sono scelte valide per `t_start` per l'evento con indice {idx}.")
             # Generate t_start for i-th peaks by randomly selecting from valid choices
             #self.__t_start[idxs_peak_ith] = [np.random.choice(vc, 1, replace=False)[0] for vc in valid_choices if len(vc) > 0]
+    """
+    
+    def __generate_tstart(self):
+        # Initialize t_start with zeros
+        self.__t_start = np.zeros(self.__total_size, dtype=np.int64)
+        # Define the possible choices for each curve
+        choices = np.arange(self._cfg.tstart_min, self._cfg.tstart_max, dtype=np.int16)
+        # Define the mask for select valid choices, thanks to probability distribution to pass
+        #   to the method np.random.choice
+        mask = np.full((self._cfg.size, self._cfg.tstart_max-self._cfg.tstart_min), True)
+        # Loop for max number of peaks times
+        for i in range(max(self.__m_list)):
+            # Get the indexes for all curves which have More than i+1 Peaks
+            idxs_MiPeaks = np.where(self.__m_list >= i+1)[0]
+            # Get t_start idxs for the i-th peak of each curve which have More than i Peaks
+            idxs_tstart  = self.__lookup_table[idxs_MiPeaks] + i
+            # Re-compute the mask for the current peak 
+            if i > 0:
+                mask[idxs_MiPeaks] = mask[idxs_MiPeaks-1] & (\
+                            (choices[None, :] < self.__t_start[idxs_tstart -1, None] - self._cfg.delta_tstart) | \
+                            (choices[None, :] > self.__t_start[idxs_tstart -1, None] + self._cfg.delta_tstart)
+                        )
+            # Get the probability distribution from the mask
+            p_distr = mask/np.sum(mask, axis=1)[:, None]
+            # For each index, generate a t_start that respects self._cfg.delta_tstart
+            for j, k in zip(idxs_tstart, idxs_MiPeaks):
+                # Randomly select a valid choice for t_start
+                self.__t_start[j] = np.random.choice(choices, 1, p=p_distr[k])[0] 
 
     def __generate_params(self):
         self.__x_base = self._cfg.bkgbase_level * np.ones_like(self.__t)
@@ -149,7 +178,8 @@ class GammaSim:
             self.__gauss_ker    = np.full(self.__total_size, None)
             self.__gauss_ker_dt = np.full(self.__total_size, None)
             self.__p            = np.random.uniform(self._cfg.p_min, self._cfg.p_max, size=(self.__total_size,))
-        self.__generate_tstart(self.__dt)
+        # self.__generate_tstart(self.__dt)
+        self.__generate_tstart()
         self.__reorder_t_start()
         
     ##########################################################################################################################

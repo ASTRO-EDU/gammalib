@@ -16,7 +16,7 @@
     "gamma_max_noSat": 9001,
     "tstart_min": 500,
     "tstart_max": 1000,
-    "delta_tstart": 200,
+    "delta_tstart": 50,
     "wf_shape": 2,
     "tau1_min": 1.6e-7,
     "tau1_max": 1.6e-7,
