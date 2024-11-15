@@ -265,7 +265,12 @@ class GammaSim:
         return self.__peak_signals
     
     def get_areas(self):
-        return self.__integrals
+        areas = np.zeros((self._cfg.size, self._cfg.max_peaks))
+        for i, start, stop in zip(range(self._cfg.size),
+                                  self.__lookup_table[:-1], 
+                                  self.__lookup_table[1:]):
+            areas[i, 0:stop-start+1] = self.__integrals[start:stop]
+        return areas
 
     def get_params(self):
         return [self.__params(i) for i in range(self._cfg.size)]
@@ -334,16 +339,22 @@ class GammaSim:
         # plt.tight_layout()
         plt.show()
 
-    def plot_gamma_distribution(self):
+    def plot_gamma_distribution(self, num_bins=10):
         """
-        Plot the distribution of gamma values in self._gamma.
+        Plot the distribution of gamma values in self.__gamma.
+        
+        Parameters:
+        num_bins (int): Number of bins (bars) to use in the histogram. Default is 10.
         """
-        # Calculate the histogram of gamma values
-        gamma_values, gamma_counts = np.unique(self.__gamma, return_counts=True)
+        # Calculate the histogram of gamma values with the specified number of bins
+        gamma_counts, bin_edges = np.histogram(self.__gamma, bins=num_bins)
+        
+        # Calculate the center of each bin for plotting
+        bin_centers = 0.5 * (bin_edges[1:] + bin_edges[:-1])
+        
         # Plotting with centered ticks
         plt.figure(figsize=(10, 5))
-        plt.bar(gamma_values, gamma_counts, width=1, color='skyblue', edgecolor='black')  # Shift bars by 0.5
-        plt.xticks(gamma_values)  # Set the x-ticks to be the gamma values
+        plt.bar(bin_centers, gamma_counts, width=(bin_edges[1] - bin_edges[0]), color='skyblue', edgecolor='black')
         plt.xlabel("Gamma Values")
         plt.ylabel("Frequency")
         plt.title("Distribution of Gamma Values")
