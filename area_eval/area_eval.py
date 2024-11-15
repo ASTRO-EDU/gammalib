@@ -17,6 +17,12 @@ def arr(area_real, area_pred):
     """
     Area Relative Ratio:
     """
+    # Padding di area_real e area_pred per farli avere la stessa shape
+    max_len = max(area_real.shape[-1], area_pred.shape[-1])
+    if area_real.shape[-1] < max_len:
+        area_real = np.pad(area_real, ((0, 0), (0, max_len - area_real.shape[-1])), mode='constant', constant_values=1e-9)
+    if area_pred.shape[-1] < max_len:
+        area_pred = np.pad(area_pred, ((0, 0), (0, max_len - area_pred.shape[-1])), mode='constant', constant_values=1e-9)
     return (area_real-area_pred) / area_real
 
 
@@ -41,6 +47,12 @@ def plot_ARR(area_real, area_pred, bin_size=0.1, path=None, xlogscale=False):
     """
     Plots histograms and boxplot ARR and print the Mean ARR in the title
     """
+    # Padding di area_real e area_pred per farli avere la stessa shape
+    max_len = max(area_real.shape[-1], area_pred.shape[-1])
+    if area_real.shape[-1] < max_len:
+        area_real = np.pad(area_real, ((0, 0), (0, max_len - area_real.shape[-1])), mode='constant', constant_values=1e-9)
+    if area_pred.shape[-1] < max_len:
+        area_pred = np.pad(area_pred, ((0, 0), (0, max_len - area_pred.shape[-1])), mode='constant', constant_values=1e-9)
     for idx_peak in range(area_real.shape[-1]):
         # Calcolo di MARR e ARR
         marr_value = marr(area_real=area_real[:,idx_peak], area_pred=area_pred[:,idx_peak])
@@ -83,6 +95,12 @@ def false_intpred_rate(area_real, area_pred, alpha: float = 0.5):
     """
     False Area Prediction Relative Rate:
     """
+    # Padding di area_real e area_pred per farli avere la stessa shape
+    max_len = max(area_real.shape[-1], area_pred.shape[-1])
+    if area_real.shape[-1] < max_len:
+        area_real = np.pad(area_real, ((0, 0), (0, max_len - area_real.shape[-1])), mode='constant', constant_values=1e-9)
+    if area_pred.shape[-1] < max_len:
+        area_pred = np.pad(area_pred, ((0, 0), (0, max_len - area_pred.shape[-1])), mode='constant', constant_values=1e-9)
     arr = np.abs((area_pred-area_real) / area_real)
     fpred_len = len(arr[arr > alpha])
     return fpred_len/len(arr)
@@ -90,6 +108,12 @@ def false_intpred_rate(area_real, area_pred, alpha: float = 0.5):
 
 
 def print_faprr(area_real, area_pred, alpha_list: List):
+    # Padding di area_real e area_pred per farli avere la stessa shape
+    max_len = max(area_real.shape[-1], area_pred.shape[-1])
+    if area_real.shape[-1] < max_len:
+        area_real = np.pad(area_real, ((0, 0), (0, max_len - area_real.shape[-1])), mode='constant', constant_values=1e-9)
+    if area_pred.shape[-1] < max_len:
+        area_pred = np.pad(area_pred, ((0, 0), (0, max_len - area_pred.shape[-1])), mode='constant', constant_values=1e-9)
     for idx_peak in range(area_real.shape[-1]):
         for alpha in alpha_list:
             print(f'False Prediction Rate Integral on {idx_peak+1}° peak (alpha={alpha}): '
@@ -111,6 +135,12 @@ def print_aome(area_real, area_pred):
     """
     print Area Difference Over Mean Real Area percentage error
     """
+    # Padding di area_real e area_pred per farli avere la stessa shape
+    max_len = max(area_real.shape[-1], area_pred.shape[-1])
+    if area_real.shape[-1] < max_len:
+        area_real = np.pad(area_real, ((0, 0), (0, max_len - area_real.shape[-1])), mode='constant', constant_values=1e-9)
+    if area_pred.shape[-1] < max_len:
+        area_pred = np.pad(area_pred, ((0, 0), (0, max_len - area_pred.shape[-1])), mode='constant', constant_values=1e-9)
     for idx_peak in range(area_real.shape[-1]):
         print(f'Area over mean on {idx_peak+1}° peak: '
               f'{areaovermean_error(area_real=area_real[:,idx_peak], area_pred=area_pred[:,idx_peak]):.5f}')
@@ -119,6 +149,12 @@ def print_aome(area_real, area_pred):
 
 def plot_hists(area_real, area_pred,
                title='Diff_relative_cutscl', new_max=1, new_min=-1, bin_size=0.01, logscale=False, path=None):
+    # Padding di area_real e area_pred per farli avere la stessa shape
+    max_len = max(area_real.shape[-1], area_pred.shape[-1])
+    if area_real.shape[-1] < max_len:
+        area_real = np.pad(area_real, ((0, 0), (0, max_len - area_real.shape[-1])), mode='constant', constant_values=1e-9)
+    if area_pred.shape[-1] < max_len:
+        area_pred = np.pad(area_pred, ((0, 0), (0, max_len - area_pred.shape[-1])), mode='constant', constant_values=1e-9)
     # Calcola la distanza fra area reale e predetta dividendo per l'area reale
     diff = (area_real - area_pred) / area_real
     # Tutti gli outliers sono raggruppati nello stesso estremo
@@ -162,6 +198,12 @@ def plot_hists(area_real, area_pred,
 
 def plot_gaussian_fitted(area_real, area_pred, 
                          title='Diff_relative_cutscl vs Gaussian fit', new_max=1, new_min=-1, bin_size=0.01, logscale=False, path=None):
+    # Padding di area_real e area_pred per farli avere la stessa shape
+    max_len = max(area_real.shape[-1], area_pred.shape[-1])
+    if area_real.shape[-1] < max_len:
+        area_real = np.pad(area_real, ((0, 0), (0, max_len - area_real.shape[-1])), mode='constant', constant_values=1e-9)
+    if area_pred.shape[-1] < max_len:
+        area_pred = np.pad(area_pred, ((0, 0), (0, max_len - area_pred.shape[-1])), mode='constant', constant_values=1e-9)
     ###################################
     # Fit della distribuzione gaussiana
     def gaussian_fit(x, mu, sigma):
@@ -219,17 +261,18 @@ def plot_gaussian_fitted(area_real, area_pred,
 
         # Aggiunta delle etichette per media, sigma e chi quadrato
         # plt.text(mu_fit + 0.1 if mu_fit <= 0 else mu_fit - 0.1,
-        plt.text(mu_fit - 0.1,
-                np.max(hist)*0.8, f'Mean: {mu_fit:.5f}\n'
-                                  f'Sigma: {sigma_fit:.5f}\n'
-                                  f'Chi^2: {chi_squared:.5f}\n', fontsize=10,
-                verticalalignment='bottom',
-                # horizontalalignment='left' if mu_fit <= 0 else 'right')
-                horizontalalignment='right')
+        plt.text(0.95, 0.3, 
+                 f'Mean: {mu_fit:.5f}\n'
+                 f'Sigma: {sigma_fit:.5f}\n'
+                 f'Chi^2: {chi_squared:.5f}\n', fontsize=10,
+                 verticalalignment='bottom',
+                 # horizontalalignment='left' if mu_fit <= 0 else 'right')
+                 horizontalalignment='right')
         plt.legend()
 
         plt.xlabel('diff')
         plt.ylabel('counts normalized')
+        plt.ylim(0, 1)
         plt.title(f'{title} tra real e reco (bin_size={bin_size})')
         if not path is None:
             # Crea ricorsivamente il percorso se non esiste
