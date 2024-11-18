@@ -179,10 +179,13 @@ def plot_hists(area_real, area_pred,
         if logscale:
             plt.yscale('log')
         # Aggiungi etichette per la media dei due istogrammi
-        plt.text(diff_mean[idx_peak] - 0.1,
-                 np.max(hist1)/(idx_peak+1), f'μ_{idx_peak+1}: {diff_mean[idx_peak]:.5f},\nσ_{idx_peak+1}: {diff_std[idx_peak]:.5f}',
-                 fontsize=10, verticalalignment='top',
-                 horizontalalignment='right')
+        #plt.text(diff_mean[idx_peak] - 0.1,
+        #         np.max(hist1)/(idx_peak+1), f'μ_{idx_peak+1}: {diff_mean[idx_peak]:.5f},\nσ_{idx_peak+1}: {diff_std[idx_peak]:.5f}',
+        #         fontsize=10, verticalalignment='top',
+        #         horizontalalignment='right')
+        plt.plot([], [], color='white', 
+                 label=f'μ_{idx_peak+1}: {diff_mean[idx_peak]:.5f},\n'
+                       f'σ_{idx_peak+1}: {diff_std[idx_peak]:.5f}')
     plt.legend()
     plt.xlabel('diff')
     plt.ylabel('counts normalized')
@@ -249,30 +252,35 @@ def plot_gaussian_fitted(area_real, area_pred,
 
         # Plot dell'istogramma e della distribuzione gaussiana adattata
         plt.bar(bin_edges[:-1], hist, width=bin_size, alpha=0.5, label='Data', color=color)
-        plt.plot(bin_edges[:-1], bell_curve, color='red', label='Gaussian Fit')
-        # print(bell_curve)
         if logscale:
             plt.yscale('log')
             minvalue = np.min(hist[hist>0])
             log_minimo = np.log10(minvalue)
             potenza_intera = np.floor(log_minimo)
             potenza_di_10 = 10 ** potenza_intera
-            plt.ylim([potenza_di_10, 1])
+            plt.ylim([potenza_di_10, 1.1])
+            #plt.ylim([0, 1])
+        
+        plt.plot(bin_edges[:-1], bell_curve, color='red', label='Gaussian Fit')
+        plt.plot([], [], color='white', label=f'Mean: {mu_fit:.5f}\n'
+                                              f'Sigma: {sigma_fit:.5f}\n'
+                                              f'Chi^2: {chi_squared:.5f}')
+        # print(bell_curve)
 
         # Aggiunta delle etichette per media, sigma e chi quadrato
         # plt.text(mu_fit + 0.1 if mu_fit <= 0 else mu_fit - 0.1,
-        plt.text(0.95, 0.3, 
-                 f'Mean: {mu_fit:.5f}\n'
-                 f'Sigma: {sigma_fit:.5f}\n'
-                 f'Chi^2: {chi_squared:.5f}\n', fontsize=10,
-                 verticalalignment='bottom',
-                 # horizontalalignment='left' if mu_fit <= 0 else 'right')
-                 horizontalalignment='right')
+        #plt.text(0.95, 0.3, 
+        #         f'Mean: {mu_fit:.5f}\n'
+        #         f'Sigma: {sigma_fit:.5f}\n'
+        #         f'Chi^2: {chi_squared:.5f}\n', fontsize=10,
+        #         verticalalignment='bottom',
+        #         # horizontalalignment='left' if mu_fit <= 0 else 'right')
+        #         horizontalalignment='right')
         plt.legend()
 
         plt.xlabel('diff')
         plt.ylabel('counts normalized')
-        plt.ylim(0, 1)
+        #plt.ylim(0, 1)
         plt.title(f'{title} tra real e reco (bin_size={bin_size})')
         if not path is None:
             # Crea ricorsivamente il percorso se non esiste
