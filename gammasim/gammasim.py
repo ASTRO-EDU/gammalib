@@ -188,7 +188,7 @@ class GammaSim:
         # Generate the peak signals with the specified shape method
         self.__peak_signals = np.zeros((self.__total_size, 
                                         self._cfg.xlen))
-        self.__height = np.zeros(self.__total_size)
+        self.__heights = np.zeros(self.__total_size)
         for i in tqdm(range(self.__total_size)):
             self.__peak_signals[i] = self.__shape_method(self.__time, 
                                                          self.__baseline, 
@@ -200,7 +200,7 @@ class GammaSim:
                                                          self.__p[i])
             # Compute signals' height
             x_max = find_peaks(self.__peak_signals[i])[0][0]
-            self.__height[i] = self.__peak_signals[i][x_max]
+            self.__heights[i] = self.__peak_signals[i][x_max]
         # Compute signals' area 
         self.__integrals = np.sum(self.__peak_signals, axis=1)
         
@@ -248,7 +248,7 @@ class GammaSim:
         start = self.__lookup_table[idx_sample]
         stop = self.__lookup_table[idx_sample + 1]
         params = [{'t_start': self.__t_start[i], 
-                   'height': self.__height[i], 
+                   'height': self.__heights[i], 
                    'gamma': self.__gamma[i], 
                    'tau1': self.__tau1[i],
                    'tau2': self.__tau2[i],
@@ -271,6 +271,14 @@ class GammaSim:
                                   self.__lookup_table[1:]):
             areas[i, 0:stop-start+1] = self.__integrals[start:stop]
         return areas
+
+    def get_heights(self):
+        heights = np.zeros((self._cfg.size, self._cfg.max_peaks))
+        for i, start, stop in zip(range(self._cfg.size),
+                                  self.__lookup_table[:-1], 
+                                  self.__lookup_table[1:]):
+            heights[i, 0:stop-start+1] = self.__heights[start:stop]
+        return heights
 
     def get_params(self):
         return [self.__params(i) for i in range(self._cfg.size)]
