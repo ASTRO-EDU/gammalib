@@ -1,4 +1,5 @@
 import numpy as np
+import random
 import json
 import exp
 from tqdm.auto import tqdm
@@ -11,12 +12,15 @@ import time
 from typing import Optional
 
 class GammaSim:
-    def __init__(self, configfile_path) -> None:
+    def __init__(self, configfile_path, seed=30) -> None:
         """
         Create an object GammaSim, a simulator for GAMMA-FLASH data from a configuration file.
         ## Args
         * `configfile_path`: configuration file
         """
+        random.seed(seed)
+        np.random.seed(seed)
+        
         with open(configfile_path, 'r') as configfile:
             self._cfg = ConfigModel(**json.load(configfile))
         
@@ -366,6 +370,25 @@ class GammaSim:
         plt.xlabel("Gamma Values")
         plt.ylabel("Frequency")
         plt.title("Distribution of Gamma Values")
+        plt.grid(axis="y", linestyle="--", alpha=0.7)
+        plt.show()
+
+    def plot_npeaks_distribution(self):
+        """
+        Plot the distribution of npeaks values.
+        """
+        # Calculate the histogram of gamma values with the specified number of bins
+        npeaks_counts, bin_edges = np.histogram(self.__m_list, bins=self._cfg.max_peaks)
+        
+        # Calculate the center of each bin for plotting
+        bin_centers = 0.5 * (bin_edges[1:] + bin_edges[:-1])
+        
+        # Plotting with centered ticks
+        plt.figure(figsize=(10, 5))
+        plt.bar(bin_centers, npeaks_counts, width=(bin_edges[1] - bin_edges[0]), color='skyblue', edgecolor='black')
+        plt.xlabel("npeaks")
+        plt.ylabel("Frequency")
+        plt.title("Distribution of npeaks Values")
         plt.grid(axis="y", linestyle="--", alpha=0.7)
         plt.show()
 
