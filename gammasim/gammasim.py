@@ -259,6 +259,14 @@ class GammaSim:
                    'g_kernel': self.__gauss_ker[i]} for i in range(start, stop)]
         return params
 
+    def __get_quantity(self, quantity):
+        ret = np.zeros((self._cfg.size, self._cfg.max_peaks))
+        for i, start, stop in zip(range(self._cfg.size),
+                                  self.__lookup_table[:-1], 
+                                  self.__lookup_table[1:]):
+            ret[i, 0:stop-start+1] = quantity[start:stop]
+        return ret
+    
     def get_dataset(self):
         return self.__dataset
 
@@ -268,6 +276,13 @@ class GammaSim:
     def get_labelsSplit(self):
         return self.__peak_signals
     
+    def get_gammas(self):
+        return self.__get_quantity(self.__gamma)
+    
+    def get_heights(self):
+        return self.__get_quantity(self.__heights)
+    
+    
     def get_areas(self):
         areas = np.zeros((self._cfg.size, self._cfg.max_peaks))
         for i, start, stop in zip(range(self._cfg.size),
@@ -276,13 +291,6 @@ class GammaSim:
             areas[i, 0:stop-start+1] = self.__integrals[start:stop]
         return areas
 
-    def get_heights(self):
-        heights = np.zeros((self._cfg.size, self._cfg.max_peaks))
-        for i, start, stop in zip(range(self._cfg.size),
-                                  self.__lookup_table[:-1], 
-                                  self.__lookup_table[1:]):
-            heights[i, 0:stop-start+1] = self.__heights[start:stop]
-        return heights
 
     def get_params(self):
         return [self.__params(i) for i in range(self._cfg.size)]

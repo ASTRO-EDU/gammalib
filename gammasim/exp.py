@@ -21,6 +21,8 @@ def apply_exp_tau(t, x, t_start, gamma, tau1, tau2, sigma, p):
     
 
 def _erf_term(t, t_start, sigma, tau):
+    if sigma==0:
+        return np.zeros_like(t)
     return erf((t-t_start)/(sqrt(2)*sigma)-(sqrt(2)*sigma)/(2*tau))
 
 def _single_exp_fn(t, t_start, sigma, tau):
@@ -35,7 +37,6 @@ def second_ord_exp_decay(t, x, t_start, gamma, tau1, tau2, sigma, p):
     
     x_resp = gamma*(_single_exp_fn(t_right, t_start, sigma, tau1)*(1+_erf_term(t_right, t_start, sigma, tau1))-
                      _single_exp_fn(t_right, t_start, sigma, tau2)*(1+_erf_term(t_right, t_start, sigma, tau2)))
-
     y = np.concatenate([x_leftzeros, x_resp])
     return x + y
 
@@ -45,7 +46,7 @@ def first_ord_exp_decay(t, x, t_start, gamma, tau1, tau2, sigma, p):
     x_leftzeros  = np.zeros_like(t_left)
     t_right = t[split_index:]  # All values from t_start onward
     
-    x_resp = gamma*(_single_exp_fn(t_right, t_start, 0, tau2))
+    x_resp = gamma*(_single_exp_fn(t_right, t_start, 0, tau2)*(1+_erf_term(t_right, t_start, sigma, tau2)))
 
     y = np.concatenate([x_leftzeros, x_resp])
     return x + y
