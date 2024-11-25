@@ -1,13 +1,27 @@
 import numpy as np
-from math import sqrt
+from math import sqrt, factorial
 from scipy.special import erf
 import math
 
-def apply_exp(t,x,t_start,gamma,a):
+def apply_exp(t, x, t_start, gamma, a):
     y = np.concatenate([np.zeros(t_start),np.floor(gamma*np.exp(a*(t[t_start:]-t_start)))])
     return x + y
+    
+def _erf_term(t, t_start, sigma, tau):
+    if sigma==0:
+        return np.zeros_like(t)
+    return erf((t-t_start)/(sqrt(2)*sigma)-(sqrt(2)*sigma)/(2*tau))
 
-def apply_exp_tau(t, x, t_start, gamma, tau1, tau2, sigma, p):
+def _single_exp_fn(t, t_start, sigma, tau, n=None):
+    return np.exp(((sigma**2)/(2*tau**2))-(t-t_start)/tau)
+
+#####################################################################################################################################################################
+
+##############
+# METHOD 1
+##############
+
+def apply_exp_tau(t, x, t_start, gamma, tau1, tau2, sigma, p, n):
     eps = 1    
     a1 = -(math.log(1/gamma)/tau1)
     a2 = math.log(1/gamma)/tau2
@@ -18,17 +32,12 @@ def apply_exp_tau(t, x, t_start, gamma, tau1, tau2, sigma, p):
     x_rightzeros = np.zeros(max(len(x)-t_start-tau2, 0))
     y = np.concatenate([x_leftzeros, x_prepeak, x_postpeak,x_rightzeros])
     return x + y
-    
 
-def _erf_term(t, t_start, sigma, tau):
-    if sigma==0:
-        return np.zeros_like(t)
-    return erf((t-t_start)/(sqrt(2)*sigma)-(sqrt(2)*sigma)/(2*tau))
+##############
+# METHOD 2
+##############
 
-def _single_exp_fn(t, t_start, sigma, tau):
-    return np.exp(((sigma**2)/(2*tau**2))-(t-t_start)/tau)
-
-def second_ord_exp_decay(t, x, t_start, gamma, tau1, tau2, sigma, p):
+def second_ord_exp_decay(t, x, t_start, gamma, tau1, tau2, sigma, p, n):
     gamma = -gamma
     split_index = np.where(t >= t_start)[0][0]
     t_left = t[:split_index]  # All values before t_start
@@ -40,18 +49,26 @@ def second_ord_exp_decay(t, x, t_start, gamma, tau1, tau2, sigma, p):
     y = np.concatenate([x_leftzeros, x_resp])
     return x + y
 
-def first_ord_exp_decay(t, x, t_start, gamma, tau1, tau2, sigma, p):
+##############
+# METHOD 3
+##############
+
+def first_ord_exp_decay(t, x, t_start, gamma, tau1, tau2, sigma, p, n):
     split_index = np.where(t >= t_start)[0][0]
     t_left = t[:split_index]  # All values before t_start
     x_leftzeros  = np.zeros_like(t_left)
     t_right = t[split_index:]  # All values from t_start onward
     
-    x_resp = gamma*(_single_exp_fn(t_right, t_start, 0, tau2)*(1+_erf_term(t_right, t_start, sigma, tau2)))
+    x_resp = gamma*(_single_exp_fn(t_right, t_start, 0, tau2))
 
     y = np.concatenate([x_leftzeros, x_resp])
     return x + y
 
-def orsa_pulse_fitting(t, y0, t_start, gamma, tau1, tau2, sigma, p):
+##############
+# METHOD 4
+##############
+
+def orsa_pulse_fitting(t, y0, t_start, gamma, tau1, tau2, sigma, p, n):
     """
     # METHOD 4
     ## ORSA fitting function for noisy signal reconstruction.
@@ -75,6 +92,39 @@ def orsa_pulse_fitting(t, y0, t_start, gamma, tau1, tau2, sigma, p):
         y0 + (gamma * ((1 - np.exp(-(t - t_start) / tau1))**p)) * np.exp(-(t - t_start) / tau2)  # Per t >= t0
     )
     return y
+
+##############
+# METHOD 5
+##############
+
+def semigaussian_shaper(t, y0, t_start, gamma, tau1, tau2, sigma, p, n):
+    """
+    # METHOD 5
+    ## SEMI-GAUSSIAN SHAPER Digital shaping function for semi-Gaussian filters.
+    ref: https://ieeexplore.ieee.org/abstract/document/6026241
+
+    ### Parameters:
+    * t       : numpy array, sampled times (assumed to be ordered)
+    * y0      : float, baseline value
+    * t_start : float, signal start time
+    * gamma   : float, signal amplitude
+    * tau1    : float, growth time constant (not used in this function)
+    * tau2    : float, decay time constant
+    * sigma   : float, standard deviation of noise (not used in this function)
+    * p       : float, parameter for shaping (not used in this function)
+    * n       : int, order of the semi-Gaussian shaping
+
+    ### Returns:
+    * y : numpy array, shaped signal at each time `t`
+    """
+    y = np.where(
+        t < t_start,  # For t < t_start, the signal remains at the baseline value y0
+        y0,
+        y0 + gamma * (1.0 / factorial(n)) * (((t - t_start) / tau2) ** n) * np.exp(-(t - t_start) / tau2)  # For t >= t_start
+    )
+    return y
+
+#####################################################################################################################################################################
     
 def quantize_signal(input_signal, n_bit, input_min, input_max):
     # Calculate the number of quantization levels and the step size

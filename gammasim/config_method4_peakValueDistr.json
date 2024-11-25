@@ -25,5 +25,7 @@
     "gauss_kernel_min" : 0,
     "gauss_kernel_max" : 0,
     "p_min" : 3.5,
-    "p_max" : 3.5
+    "p_max" : 3.5,
+    "n_min" : 0,
+    "n_max" : 0
 }
