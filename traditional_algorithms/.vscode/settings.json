@@ -1,0 +1,9 @@
+{
+    "terminal.integrated.env.linux": {
+        "PYTHONPATH": "/mnt/Windows/SHARED/ws_vscode/gammalib/gammasim/:/mnt/Windows/SHARED/ws_vscode/gammalib/area_eval/"
+    },
+    "python.analysis.extraPaths": [
+        "/mnt/Windows/SHARED/ws_vscode/gammalib/gammasim/",
+        "/mnt/Windows/SHARED/ws_vscode/gammalib/area_eval/"
+    ]
+}
