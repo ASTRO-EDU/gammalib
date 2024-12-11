@@ -2,3 +2,4 @@ __pycache__
 gammasim_venv
 # g++ compile in RP
 compilecpp_RP.txt
+.ipynb_checkpoints

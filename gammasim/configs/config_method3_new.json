@@ -14,18 +14,10 @@
     "gamma_max_wtSat": 12000,
     "gamma_min_noSat": 300,
     "gamma_max_noSat": 8100,
-    "tstart_min": 1000,
+    "tstart_min": 500,
     "tstart_max": 3000,
     "delta_tstart": 50,
-    "wf_shape": 1,
-    "tau1_min": 30,
-    "tau1_max": 100,
-    "tau2_min": 6000,
-    "tau2_max": 7000,
-    "gauss_kernel_min" : 0,
-    "gauss_kernel_max" : 0,
-    "p_min" : 0.0,
-    "p_max" : 0.0,
-    "n_min" : 0,
-    "n_max" : 0
+    "wf_shape": 3,
+    "tau_min": 6e-6,
+    "tau_max": 7e-6
 }
