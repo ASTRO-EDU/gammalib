@@ -1,7 +1,8 @@
-from abc import ABC, abstractmethod
 import numpy as np
 import json
-import exp
+import sys
+sys.path.append('/home/gamma/workspace/gammalib')
+import expfuncs.exp as exp
 from typing import Union
 import math
 
@@ -53,7 +54,7 @@ class GmPiecewiseExp(GammaFunc):
     # Method to generate the signal shape based on given parameters
     def _shape_method(self, t_start, gamma, **kwargs):
         time, baseline, t1, t2 = kwargs['time'], kwargs['baseline'], kwargs['t1'], kwargs['t2']
-        return exp.apply_exp_tau(time, baseline, t_start, gamma, t1, t2, None, None, None)
+        return exp.piecewise_exp(time, baseline, t_start, gamma, t1, t2)
 
 ##########################################################################################################################
 # METHOD 2: Convolution
@@ -101,7 +102,7 @@ class GmConvolution(GammaFunc):
     # Method to generate the signal shape based on given parameters
     def _shape_method(self, t_start, gamma, **kwargs):
         time, baseline, tau1, tau2, sigma = kwargs['time'], kwargs['baseline'], kwargs['tau1'], kwargs['tau2'], kwargs['sigma']
-        return exp.second_ord_exp_decay(time, baseline, t_start, gamma, tau1, tau2, sigma, None, None)
+        return exp.conv_decay(time, baseline, t_start, gamma, tau1, tau2, sigma)
     
 ##########################################################################################################################
 # METHOD 3: Convolution first order
@@ -139,7 +140,7 @@ class GmConvolutionFOrd(GammaFunc):
     # Method to generate the signal shape based on given parameters
     def _shape_method(self, t_start, gamma, **kwargs):
         time, baseline, tau = kwargs['time'], kwargs['baseline'], kwargs['tau']
-        return exp.first_ord_exp_decay(time, baseline, t_start, gamma, None, tau, None, None, None)
+        return exp.single_exp(time, baseline, t_start, gamma, tau)
 
 ##########################################################################################################################
 # METHOD 4: ORSA
@@ -185,7 +186,7 @@ class GmORSA(GammaFunc):
     # Method to generate the signal shape based on given parameters
     def _shape_method(self, t_start, gamma, **kwargs):
         time, baseline, tau1, tau2, p = kwargs['time'], kwargs['baseline'], kwargs['tau1'], kwargs['tau2'], kwargs['p']
-        return exp.orsa_pulse_fitting(time, baseline, t_start, gamma, tau1, tau2, None, p, None)
+        return exp.orsa_pulse_fitting(time, baseline, t_start, gamma, tau1, tau2, p)
 
 ##########################################################################################################################
 # METHOD 5: Semi-Gaussian

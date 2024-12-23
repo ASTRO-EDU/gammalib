@@ -1,5 +1,5 @@
 {
-    "size": 500000,
+    "size": 1000,
     "xlen": 1000,
     "sampling_time": 8e-9,
     "n_bit_quantization": 14,
@@ -10,18 +10,16 @@
     "gauss_std": 8.3, 
     "gauss_mean": "none",
     "bkgbase_level": 120,
-    "gamma_min_wtSat": 100,
-    "gamma_max_wtSat": 40000,
-    "gamma_min_noSat": 300,
-    "gamma_max_noSat": 40000,
+    "gamma_min": 1779,
+    "gamma_max": 7471,
     "tstart_min": 125,
     "tstart_max": 140,
     "delta_tstart": 50,
     "wf_shape": 2,
-    "tau2_min": 3.84e-08,
-    "tau2_max": 1.84e-07,
-    "taudiff_min": 4.258441161504045e-08,
-    "taudiff_max": 2.0547700744226055e-07,
-    "gauss_kernel_min": 5.5200000000000005e-08,
-    "gauss_kernel_max": 1.1040000000000001e-07
+    "tau2_min": 5.569907528980722e-08,
+    "tau2_max": 1.1075155956543275e-07,
+    "taudiff_min": 4.3113998390868976e-08,
+    "taudiff_max": 2.053932783074467e-07,
+    "gauss_kernel_min": 8.000000000000002e-11,
+    "gauss_kernel_max": 3.419182000222634e-08
 }

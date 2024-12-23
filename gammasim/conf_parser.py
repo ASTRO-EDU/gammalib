@@ -14,10 +14,12 @@ class CommonConfigModel(BaseModel, ABC):
     gauss_maxrate: Annotated[float, Field(ge=0.0, le=1.0)]  # Valore tra 0 e 1
     gauss_std: Optional[Union[float, str]] = "none"  # Può essere un numero o "none"
     gauss_mean: Optional[Union[float, str]] = "none"  # Può essere un numero o "none"
-    gamma_min_wtSat: Annotated[int, Field()]  # Minimo valore per il picco in saturazione
-    gamma_max_wtSat: Annotated[int, Field()]  # Massimo valore per il picco in saturazione
-    gamma_min_noSat: Annotated[int, Field()]  # Minimo valore per il picco senza saturazione
-    gamma_max_noSat: Annotated[int, Field()]  # Massimo valore per il picco senza saturazione
+    #gamma_min_wtSat: Annotated[int, Field()]  # Minimo valore per il picco in saturazione
+    #gamma_max_wtSat: Annotated[int, Field()]  # Massimo valore per il picco in saturazione
+    #gamma_min_noSat: Annotated[int, Field()]  # Minimo valore per il picco senza saturazione
+    #gamma_max_noSat: Annotated[int, Field()]  # Massimo valore per il picco senza saturazione
+    gamma_min: Annotated[int, Field()]  # Minimo valore per il picco senza saturazione
+    gamma_max: Annotated[int, Field()]  # Massimo valore per il picco senza saturazione
     tstart_min: Annotated[int, Field(ge=0)]  # Minimo valore per l'inizio del tempo
     tstart_max: Annotated[int, Field(ge=0)]  # Massimo valore per l'inizio del tempo
     delta_tstart: Annotated[int, Field(ge=0)]  # Distanza minima tra i picchi

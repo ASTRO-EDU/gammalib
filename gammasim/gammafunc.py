@@ -1,8 +1,9 @@
 from abc import ABC, abstractmethod
 import numpy as np
 import random
-import json
-import exp
+import sys
+sys.path.append('/home/gamma/workspace/gammalib')
+import expfuncs.exp as exp
 from tqdm.auto import tqdm
 from matplotlib import pyplot as plt
 from scipy.signal import find_peaks
@@ -168,16 +169,19 @@ class GammaFunc(ABC):
 
     ##########################################################################################################################
     ### 5. APPLY GAUSS NOISE  
-    def __generate_dataset_noise(self):
+    def __generate_dataset_noise(self, F_saturation):
         # Apply Gauss noise 
         labels_noise = exp.apply_gauss(self.__labels + self.__x_base[None, :], 
                                        self._cfg.gauss_mean, self._cfg.gauss_std)
+        maxcount_value = np.rint(np.max(labels_noise))
+        if F_saturation:
+            maxcount_value = self._cfg.maxcount_value
         # Apply quantization
         self.__dataset = np.array(
             [exp.quantize_signal(labels_noise[i], 
                                  self._cfg.n_bit_quantization, 
                                  self._cfg.mincount_value, 
-                                 self._cfg.maxcount_value) for i in range(self._cfg.size)], 
+                                 maxcount_value) for i in range(self._cfg.size)], 
             dtype=np.int16)
     
     ##########################################################################################################################
@@ -282,10 +286,13 @@ class GammaFunc(ABC):
             raise Exception(f"Type for {idx} not allowed")
         
         print_params = lambda params, decimal_places=10: '\n'.join(
-            ', '.join(f"{k}: {f'{v:.{decimal_places}f}'.rstrip('0').rstrip('.') if isinstance(v, (int, float)) else v}"
-                    for k, v in param.items() if v is not None) 
+            ', '.join(
+                f"{k}: "
+                f"{f'{v:.2f}' if isinstance(v, float) and v > 1 else f'{v/1e-9:.1f}e-9' if isinstance(v, float) and v < 1 else f'{v:.{decimal_places}f}'.rstrip('0').rstrip('.') if isinstance(v, (int, float)) else v}"
+                for k, v in param.items() if v is not None
+            )
             for param in params
-        )   
+        )
 
         fig, axs = plt.subplots(1, 2, figsize=(15, 5))
         axs[0].set_title(print_params(self._params(idx)), fontsize=8)  # Imposta la dimensione del carattere a 10
@@ -355,6 +362,49 @@ class GammaFunc(ABC):
         plt.grid(axis="y", linestyle="--", alpha=0.7)
         plt.show()
 
+    def plot_areas_distribution(self, num_bins=10):
+        """
+        Plot the distribution of gamma values in self._gamma.
+        
+        Parameters:
+        num_bins (int): Number of bins (bars) to use in the histogram. Default is 10.
+        """
+        # Calculate the histogram of gamma values with the specified number of bins
+        gamma_counts, bin_edges = np.histogram(self.__integrals, bins=num_bins)
+        
+        # Calculate the center of each bin for plotting
+        bin_centers = 0.5 * (bin_edges[1:] + bin_edges[:-1])
+        
+        # Plotting with centered ticks
+        plt.figure(figsize=(10, 5))
+        plt.bar(bin_centers, gamma_counts, width=(bin_edges[1] - bin_edges[0]), color='skyblue', edgecolor='black')
+        plt.xlabel("Area Values")
+        plt.ylabel("Frequency")
+        plt.title("Distribution of Area Values")
+        plt.grid(axis="y", linestyle="--", alpha=0.7)
+        plt.show()
+
+    def plot_heights_distribution(self, num_bins=10):
+        """
+        Plot the distribution of gamma values in self._gamma.
+        
+        Parameters:
+        num_bins (int): Number of bins (bars) to use in the histogram. Default is 10.
+        """
+        # Calculate the histogram of gamma values with the specified number of bins
+        gamma_counts, bin_edges = np.histogram(self._heights, bins=num_bins)
+        
+        # Calculate the center of each bin for plotting
+        bin_centers = 0.5 * (bin_edges[1:] + bin_edges[:-1])
+        
+        # Plotting with centered ticks
+        plt.figure(figsize=(10, 5))
+        plt.bar(bin_centers, gamma_counts, width=(bin_edges[1] - bin_edges[0]), color='skyblue', edgecolor='black')
+        plt.xlabel("Heights Values")
+        plt.ylabel("Frequency")
+        plt.title("Distribution of Heights Values")
+        plt.grid(axis="y", linestyle="--", alpha=0.7)
+        plt.show()
     
     ##########################################################################################################################
     ##########################################################################################################################
@@ -375,7 +425,8 @@ class GammaFunc(ABC):
         assert (not F_random_npeaks) or (peak_value_distr is None)
         
         # Set the gamma range based on the saturation flag
-        gamma_min, gamma_max = (self._cfg.gamma_min_wtSat, self._cfg.gamma_max_wtSat) if F_saturation else (self._cfg.gamma_min_noSat, self._cfg.gamma_max_noSat)
+        # gamma_min, gamma_max = (self._cfg.gamma_min_wtSat, self._cfg.gamma_max_wtSat) if F_saturation else (self._cfg.gamma_min_noSat, self._cfg.gamma_max_noSat)
+        gamma_min, gamma_max = self._cfg.gamma_min, self._cfg.gamma_max
         
         # Define possible peak values as a sequence between gamma_min and gamma_max
         self.peak_values_poss = np.linspace(gamma_min, gamma_max, num=gamma_max - gamma_min+1)
@@ -426,7 +477,7 @@ class GammaFunc(ABC):
         start_time = time.time()
         print("STEP 5: Applying noise to dataset")
         print('start_time:', f"{start_time:.6f}")
-        self.__generate_dataset_noise()
+        self.__generate_dataset_noise(F_saturation)
         stop_time = time.time()
         print('stop_time: ', f"{stop_time:.6f}, total time for this step = {stop_time-start_time:.8f}\n")   
         

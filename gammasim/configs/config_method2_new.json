@@ -1,5 +1,5 @@
 {
-    "size": 10,
+    "size": 1,
     "xlen": 1000,
     "sampling_time": 8e-9,
     "n_bit_quantization": 14,
