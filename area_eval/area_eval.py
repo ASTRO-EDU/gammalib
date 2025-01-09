@@ -43,7 +43,7 @@ def npreds_over_nreal(area_real, area_pred):
     return len(filtered_area_pred) / len(area_real)
 
 
-def plot_ARR(area_real, area_pred, bin_size=0.1, path=None, xlogscale=False):
+def plot_ARR(area_real, area_pred, bin_size=0.1, path=None, xlogscale=False, ylogscale=True, showfliers=True):
     """
     Plots histograms and boxplot ARR and print the Mean ARR in the title
     """
@@ -53,36 +53,53 @@ def plot_ARR(area_real, area_pred, bin_size=0.1, path=None, xlogscale=False):
         area_real = np.pad(area_real, ((0, 0), (0, max_len - area_real.shape[-1])), mode='constant', constant_values=1e-9)
     if area_pred.shape[-1] < max_len:
         area_pred = np.pad(area_pred, ((0, 0), (0, max_len - area_pred.shape[-1])), mode='constant', constant_values=1e-9)
+
     for idx_peak in range(area_real.shape[-1]):
         # Calcolo di MARR e ARR
-        marr_value = marr(area_real=area_real[:,idx_peak], area_pred=area_pred[:,idx_peak])
-        arr_values = arr(area_real=area_real[:,idx_peak], area_pred=area_pred[:,idx_peak])
+        marr_value = marr(area_real=area_real[:, idx_peak], area_pred=area_pred[:, idx_peak])
+        arr_values = arr(area_real=area_real[:, idx_peak], area_pred=area_pred[:, idx_peak])
+
         # Definisci il numero di bin e il range
         num_bins = min(ceil((arr_values.max() - arr_values.min()) / bin_size), 100)
-        # raise Exception('Stop')
+
         # Creazione dei subplots
         fig, axs = plt.subplots(1, 2, figsize=(12, 5))
+
         # Calcola gli istogrammi
         hist1, bin_edges = np.histogram(arr_values, bins=num_bins, density=True)
         hist1 = hist1 / np.sum(hist1)
-        color = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:purple'][idx_peak] # Seleziona il colore
+        color = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:purple'][idx_peak]  # Seleziona il colore
+
         # Plot degli istogrammi utilizzando plt.bar()
         axs[0].bar(bin_edges[:-1], hist1, width=bin_size, color=color, label=f'diff {idx_peak+1}° peak')
         axs[0].set_title(f'Histogram ARR {idx_peak+1}° peak')
-        axs[0].set_yscale('log')
+        if ylogscale:
+            axs[0].set_yscale('log')
         if xlogscale:
-          axs[0].set_xscale('symlog')
+            axs[0].set_xscale('symlog')
         axs[0].set_ylabel('normalized counts')
         axs[0].set_xlabel('ARRs')
+
         # Plot del boxplot
-        axs[1].boxplot(arr_values)
+        res = axs[1].boxplot(arr_values, showfliers=showfliers)
         axs[1].set_title(f'Boxplot ARR {idx_peak+1}° peak')
         axs[1].set_yscale('symlog')
+
+        # Aggiungi linee verticali per i baffi
+        whiskers = res["whiskers"]  # I whiskers contengono i valori minimo e massimo
+        min_whisker = whiskers[0].get_ydata()[1]  # Estremo inferiore
+        max_whisker = whiskers[1].get_ydata()[1]  # Estremo superiore
+
+        axs[0].axvline(min_whisker, color='red', linestyle='--', linewidth=1, label="whiskers")
+        axs[0].axvline(max_whisker, color='red', linestyle='--', linewidth=1)
+        axs[0].legend()
+
         # Aggiunta di MARR come testo nel subplot dell'istogramma
         fig.suptitle(f'MARR on {idx_peak+1}° peak: {marr_value:.5f}', fontsize=14)
+
         # Visualizzazione del plot
         plt.tight_layout()
-        if not path is None:
+        if path is not None:
             # Crea ricorsivamente il percorso se non esiste
             os.makedirs(path, exist_ok=True)
             # Salva la figura nella cartella desiderata
@@ -148,7 +165,13 @@ def print_aome(area_real, area_pred):
 
 
 def plot_hists(area_real, area_pred,
-               title='Diff_relative_cutscl', new_max=1, new_min=-1, bin_size=0.01, logscale=False, path=None):
+               title='Diff_relative_cutscl', new_max=None, new_min=None, bin_size=None, logscale=False, path=None):
+    '''
+        by default 
+         - new_(min|max) are chosen to have the best zoom, to see the outlayers set to -1 and 1
+         - bin_size is chosen to have 200 bins in the range
+    '''
+
     # Padding di area_real e area_pred per farli avere la stessa shape
     max_len = max(area_real.shape[-1], area_pred.shape[-1])
     if area_real.shape[-1] < max_len:
@@ -161,8 +184,28 @@ def plot_hists(area_real, area_pred,
     diff[diff > 1.] = 1.
     diff[diff < -1.] = -1.
 
-    # Definisci il numero di bin e il range
-    num_bins = int((new_max-new_min)/bin_size)
+    if new_max is None:
+        new_max = diff[diff < 1].max() * 1.618  # exclude outlayers, 1.618 is the golden ratio
+    if new_min is None:
+        new_min = diff[diff > -1].min() * 1.618  # exclude outlayers, 1.618 is the golden ratio
+    
+    # Controllo del range
+    if new_max <= new_min:
+        raise ValueError(f"Invalid range: new_min={new_min}, new_max={new_max}")
+    
+    if bin_size is None:
+        bin_size = abs(new_max - new_min) / 200
+    
+    # Controllo di bin_size
+    if bin_size <= 0 or np.isclose(bin_size, 0):
+        raise ValueError(f"Invalid bin_size computed: {bin_size}. Check new_min={new_min}, new_max={new_max}")
+    
+    # Calcolo del numero di bin
+    num_bins = int((new_max - new_min) / bin_size)
+    
+    # Controllo di num_bins
+    if num_bins <= 0:
+        raise ValueError(f"Invalid num_bins computed: {num_bins}. Check new_min={new_min}, new_max={new_max}, bin_size={bin_size}")
     range_min = new_min
     range_max = new_max
     print(f'### {title}')
@@ -200,7 +243,14 @@ def plot_hists(area_real, area_pred,
 
 
 def plot_gaussian_fitted(area_real, area_pred, 
-                         title='Diff_relative_cutscl vs Gaussian fit', new_max=1, new_min=-1, bin_size=0.01, logscale=False, path=None):
+                         title='Diff_relative_cutscl vs Gaussian fit', new_max=None, new_min=None, bin_size=None, logscale=False, path=None):
+    '''
+        by default 
+         - new_(min|max) are chosen to have the best zoom, to see the outlayers set to -1 and 1
+         - bin_size is chosen to have 200 bins in the range
+    '''
+    
+    
     # Padding di area_real e area_pred per farli avere la stessa shape
     max_len = max(area_real.shape[-1], area_pred.shape[-1])
     if area_real.shape[-1] < max_len:
@@ -214,12 +264,21 @@ def plot_gaussian_fitted(area_real, area_pred,
     ###################################
     # Calcola la distanza fra area reale e predetta dividendo per l'area reale
     diff = (area_real - area_pred) / area_real
+
+    if new_max is None:
+        new_max = diff[diff < 1].max() * 1.618  # exclude outlayers, 1.618 is the golden ratio
+    if new_min is None:
+        new_min = diff[diff > -1].min() * 1.618  # exclude outlayers, 1.618 is the golden ratio
+    
+    if bin_size is None:
+        bin_size = abs(new_max-new_min)/200
     # Tutti gli outliers sono raggruppati nello stesso estremo
     diff[diff > 1.] = 1.
     diff[diff < -1.] = -1.
 
     # Definisci il numero di bin e il range
     num_bins = int((new_max-new_min)/bin_size)
+    print(num_bins)
     range_min = new_min
     # range_min = new_min
     range_max = new_max
@@ -229,6 +288,7 @@ def plot_gaussian_fitted(area_real, area_pred,
         print(f'{title} {idx_peak+1}° peak')
         # Dati per il fitting
         data = diff[:, idx_peak]  # Sostituisci con i tuoi dati
+        #print(f'data: {data}')
         color = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:purple'][idx_peak] # Seleziona il colore
         # Stima iniziale dei parametri
         initial_guess = [np.mean(data), np.std(data)]
@@ -248,7 +308,11 @@ def plot_gaussian_fitted(area_real, area_pred,
         print(f"Mean: {mu_fit}")
         print(f"Sigma: {sigma_fit}")
         print(f"Chi^2: {chi_squared}")
-        res.append([mu_fit, sigma_fit, chi_squared])
+        fitres = {}
+        fitres['mu'] = mu_fit
+        fitres['sigma'] = sigma_fit
+        fitres['chi_squared'] = chi_squared
+        res.append(fitres)
 
         # Plot dell'istogramma e della distribuzione gaussiana adattata
         plt.bar(bin_edges[:-1], hist, width=bin_size, alpha=0.5, label='Data', color=color)
@@ -260,7 +324,11 @@ def plot_gaussian_fitted(area_real, area_pred,
             potenza_di_10 = 10 ** potenza_intera
             plt.ylim([potenza_di_10, 1.1])
             #plt.ylim([0, 1])
-        
+
+
+
+        #print(x_function)
+        #print(y_function)
         plt.plot(bin_edges[:-1], bell_curve, color='red', label='Gaussian Fit')
         plt.plot([], [], color='white', label=f'Mean: {mu_fit:.5f}\n'
                                               f'Sigma: {sigma_fit:.5f}\n'
