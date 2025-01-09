@@ -228,4 +228,4 @@ class GmSemiGaussian(GammaFunc):
     # Method to generate the signal shape based on given parameters
     def _shape_method(self, t_start, gamma, **kwargs):
         time, baseline, tau, n = kwargs['time'], kwargs['baseline'], kwargs['tau'], kwargs['n']
-        return exp.semigaussian_shaper(time, baseline, t_start, gamma, None, tau, None, None, n)
+        return exp.semigaussian_shaper(time, baseline, t_start, gamma, tau, n)
