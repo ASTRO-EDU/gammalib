@@ -411,7 +411,7 @@ class Eventlist_fitting:
                     #if evalSat:
                     satCheck.append(thisSat)
                 
-                    if (log == True) or (printPlot == True) or thisSat or prevSat:
+                    if (log == True) or (printPlot == True):
                         ###################
                         #### FIT PLOT #####
                         ###################
