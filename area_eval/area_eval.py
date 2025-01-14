@@ -71,7 +71,8 @@ def plot_ARR(area_real, area_pred, bin_size=0.1, path=None, xlogscale=False, ylo
         color = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:purple'][idx_peak]  # Seleziona il colore
 
         # Plot degli istogrammi utilizzando plt.bar()
-        axs[0].bar(bin_edges[:-1], hist1, width=bin_size, color=color, label=f'diff {idx_peak+1}° peak')
+        axs[0].bar(bin_edges[:-1], hist1, width=np.diff(bin_edges), color=color, label=f'diff {idx_peak+1}° peak')
+        #axs[0].hist(hist1, bins=bin_edges[:-1], color=color, label=f'diff {idx_peak+1}° peak')
         axs[0].set_title(f'Histogram ARR {idx_peak+1}° peak')
         if ylogscale:
             axs[0].set_yscale('log')
@@ -240,8 +241,6 @@ def plot_hists(area_real, area_pred,
         plt.savefig(os.path.join(path, f'diff_relative.png'))
     plt.show()
 
-
-
 def plot_gaussian_fitted(area_real, area_pred, 
                          title='Diff_relative_cutscl vs Gaussian fit', new_max=None, new_min=None, bin_size=None, logscale=False, path=None):
     '''
@@ -357,3 +356,73 @@ def plot_gaussian_fitted(area_real, area_pred,
             plt.savefig(os.path.join(path, f'diff_relative_Gfit__{idx_peak+1}.png'))
         plt.show()
     return res
+
+
+def plot_2d_bars(area_real, area_pred, 
+                 title='Area Relative Ratio 2DHistogram', 
+                 relative=False,
+                 bin_size_x=None, bin_size_y=None, 
+                 cmap='viridis', logscale=False, 
+                 path=None):
+    """
+    Crea un barplot bidimensionale per rappresentare i rapporti relativi delle aree, i valori effettivi
+    e i conteggi in una mappa di colori.
+
+    Args:
+        area_real (np.ndarray): Aree reali (array 1D).
+        area_pred (np.ndarray): Aree predette (array 1D, stessa lunghezza di area_real).
+        title (str): Titolo del grafico.
+        bin_size_x (float): Dimensione del bin per i rapporti relativi (ascisse).
+        bin_size_y (float): Dimensione del bin per le aree reali (ordinate).
+        cmap (str): Colormap per i conteggi.
+        logscale (bool): Se True, applica la scala logaritmica ai conteggi.
+        path (str): Cartella dove salvare il grafico (se specificata).
+
+    Returns:
+        None
+    """
+    # Assicuriamoci che gli input siano numpy array
+    area_real = np.asarray(area_real).flatten()
+    area_pred = np.asarray(area_pred).flatten()
+    # Calcola i rapporti relativi
+    relative_ratios = (area_pred - area_real)
+    if relative:
+        relative_ratios /= area_real
+    # Calcola il range per i rapporti e le aree reali
+    x_min, x_max = np.min(relative_ratios), relative_ratios.max()  # Limiti fissi per il rapporto
+    y_min, y_max = np.min(area_real), np.max(area_real)
+    
+    # Determina i bin
+    if bin_size_x is None:
+        bin_size_x = (x_max - x_min) / 50  # Default: 50 bins
+    if bin_size_y is None:
+        bin_size_y = (y_max - y_min) / 50  # Default: 50 bins
+    
+    # Calcolo dei bin edges
+    x_bins = np.arange(x_min, x_max + bin_size_x, bin_size_x)
+    y_bins = np.arange(y_min, y_max + bin_size_y, bin_size_y)
+    
+    # Costruzione dell'istogramma bidimensionale
+    counts, _, _ = np.histogram2d(relative_ratios, area_real, bins=100)
+    
+    # Imposta il colore logaritmico, se richiesto
+    if logscale:
+        counts = np.log1p(counts)  # log(1 + counts) per evitare log(0)
+    
+    # Configurazione del plot
+    plt.figure(figsize=(10, 8))
+    plt.imshow(counts.T, origin='lower', cmap=cmap,
+               extent=[x_min, x_max, y_min, y_max],
+               aspect='auto')
+    plt.colorbar(label='Counts (log scale)' if logscale else 'Counts')
+    plt.xlabel('Relative Difference Ratio: (area_pred - area_real) / area_real' if relative else 'Difference: area_pred - area_real')
+    plt.ylabel('Real Area')
+    plt.title(title)
+    
+    # Salvataggio del grafico
+    if path is not None:
+        os.makedirs(path, exist_ok=True)
+        plt.savefig(os.path.join(path, f"{title.replace(' ', '_')}.png"))
+    
+    # Mostra il grafico
+    plt.show()
