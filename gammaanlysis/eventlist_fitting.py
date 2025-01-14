@@ -138,7 +138,8 @@ class Eventlist_fitting:
         try:
             self.fName = fName
             self.fToFit = getattr(self, fName)
-            self.par_names = [name for name in self.fToFit.__code__.co_varnames[2:]] #### parameters of input function 
+            self.__par_names = [name for name in self.fToFit.__code__.co_varnames[2:]] #### parameters of input function 
+            self.par_names = [f'arg__{name}' for name in self.fToFit.__code__.co_varnames[2:]] #### parameters of input function 
         except:
             msg_exc = f'Function {fName} not found. Cannot proceed.\nFunctions available for fitting: \n {", ".join(self.allowedFuncs())}'
             raise Exception(msg_exc)
@@ -365,7 +366,7 @@ class Eventlist_fitting:
                     if log == True:
                         print(f"\tEXECUTED FIT for waveform {i_wf} on its peak number {j}") 
                     # Calculate chi2
-                    dof_tmp = len(xToFit)-len(self.par_names) #len(arrToFit)-len(par_names)
+                    dof_tmp = len(xToFit)-len(self.__par_names) #len(arrToFit)-len(par_names)
                     chisquare_fit = np.sum(np.multiply(residuals,residuals))/dof_tmp
                     # Integration range
                     start_integ_tmp = 0
@@ -500,10 +501,10 @@ class Eventlist_fitting:
             "satCheck": [],
         }
         # Add fit parameters with descriptive keys
-        for k in self.par_names:
+        for k in self.__par_names:
             results[f'arg__{k}'] = []
         # Add covariance matrix of parameters
-        for k in self.par_names:
+        for k in self.__par_names:
             results[f'covs__{k}'] = []
         #####
         data_section = data[startEvent:endEvent]
@@ -528,10 +529,10 @@ class Eventlist_fitting:
                 results["dof"].append(dof__y[j]),
                 results["satCheck"].append(sat__y[j]),
                 # Add fit parameters with descriptive keys
-                for k, v in zip(self.par_names, all_pars__y[j]):
+                for k, v in zip(self.__par_names, all_pars__y[j]):
                     results[f'arg__{k}'].append(v) 
                 # Add covariance matrix of parameters
-                for k, v in zip(self.par_names, all_covs__y[j]):
+                for k, v in zip(self.__par_names, all_covs__y[j]):
                     results[f'covs__{k}'].append(v) 
         # Convert the list of dictionaries to a pandas DataFrame
         results_df = pd.DataFrame(results)
@@ -601,6 +602,7 @@ class Eventlist_fitting:
             # Retrieve specific metadata and assign it to the DataFrame's attributes
             self.results_df.attrs['detector'] = f.attrs['detector']
             self.results_df.attrs['fName'] = f.attrs['fName']
+            self.__parameters_checks(f.attrs['fName'], f.attrs['detector'])
         return self.results_df
     
     def to_h5(self, input_file: str, output_file: str,
@@ -635,7 +637,7 @@ class Eventlist_fitting:
         # Definire i nomi delle colonne
         columns = [
             'folder_id', 'file_id', 'wfID', 'pkID', 'chi2', 'curveMax', 'integral', 'dof',
-        ] + [f'arg__{arg}' for arg in self.par_names]
+        ] + [f'arg__{arg}' for arg in self.__par_names]
         # Creare un DataFrame pandas
         self.results_df = pd.DataFrame(data, columns=columns)
         # Aggiungere una colonna 'satCheck'
@@ -645,27 +647,28 @@ class Eventlist_fitting:
         # Scrivere il DataFrame su file CSV
         self.write_fitresults(file_path=output_file)
         print(f"File HDF5 generato: {output_file}")
+
 #####################################################################################################################################################################
     def make_plot(self, evalSat=False, quantile_thresh=0.95, log=False):
         fName = self.results_df.attrs['fName']
         detector = self.results_df.attrs['detector']
         # Ottieni i dati e i parametri
         df_args = self.get_args_fitted()  # DataFrame contenente i dati
-        par = df_args.columns.to_numpy()  # Nomi delle colonne come array numpy
+        column_names = df_args.columns.to_numpy()  # Nomi delle colonne come array numpy
         val = df_args.to_numpy()  # Valori come array numpy (2D)
         # Rimuove la colonna 'satCheck' da par e val
-        if 'satCheck' in par:
+        if 'satCheck' in column_names:
             # Trova l'indice della colonna 'satCheck' e rimuovila
-            iSat = np.where(par == 'satCheck')[0][0]
-            par = np.delete(par, iSat)
+            iSat = np.where(column_names == 'satCheck')[0][0]
+            column_names = np.delete(column_names, iSat)
             val = np.delete(val, iSat, axis=1)
         spectra = ['curveMax', 'integral', 'A']
         #####################################
         #### dof<0 and inf chi2 removal  ####
         #####################################
         # Trova l'indice della colonna 'dof' e 'chi2'
-        idof  = np.where(par == 'dof')[0][0]
-        ichi2 = np.where(par == 'chi2')[0][0]   
+        idof  = np.where(column_names == 'dof')[0][0]
+        ichi2 = np.where(column_names == 'chi2')[0][0]   
         # Identifica le righe con dof < 0 o chi2 == inf
         nonpos_dof = np.where((val[:, idof] < 0) | np.isinf(val[:, ichi2]))[0]
         # Rimuovi queste righe da val
@@ -685,49 +688,199 @@ class Eventlist_fitting:
         clean_val = np.delete(clean_dof_val, i_delete, axis=0)
         unclean_val = clean_dof_val[i_delete]
         # Crea i subplot
-        fig, axs = plt.subplots(len(par), len(par), 
-                                figsize=(2 * (len(par)), 
-                                         2 * (len(par))))
-        for i_par in range(len(par)):
-            for j_par in range(len(par)):
-                if j_par <= i_par:
-                    if i_par == j_par:
+        fig, axs = plt.subplots(len(column_names), len(column_names), 
+                                figsize=(2 * (len(column_names)), 
+                                         2 * (len(column_names))))
+        for par in range(len(column_names)):
+            for j_par in range(len(column_names)):
+                if j_par <= par:
+                    if par == j_par:
                         # Istogrammi sulla diagonale
-                        if par[i_par] in spectra:
+                        if column_names[par] in spectra:
                             hist_bins = np.logspace(
-                                np.log10(max(min(clean_dof_val[:, i_par]), 1e-2)),
-                                np.log10(max(clean_dof_val[:, i_par])),
+                                np.log10(max(min(clean_dof_val[:, par]), 1e-2)),
+                                np.log10(max(clean_dof_val[:, par])),
                                 600
                             )
                         else:
                             hist_bins = np.linspace(
-                                min(clean_dof_val[:, i_par]),
-                                max(clean_dof_val[:, i_par]),
+                                min(clean_dof_val[:, par]),
+                                max(clean_dof_val[:, par]),
                                 600
                             )
-                        axs[i_par][j_par].hist(clean_dof_val[:, i_par], bins=hist_bins, 
+                        axs[par][j_par].hist(clean_dof_val[:, par], bins=hist_bins, 
                                                log=True, color='deeppink')
-                        axs[i_par][j_par].hist(clean_val[:, i_par], bins=hist_bins, 
+                        axs[par][j_par].hist(clean_val[:, par], bins=hist_bins, 
                                                log=True, color='green')
                     else:
                         # Scatter plot sotto la diagonale
-                        axs[i_par][j_par].scatter(unclean_val[:, j_par], unclean_val[:, i_par], 
+                        axs[par][j_par].scatter(unclean_val[:, j_par], unclean_val[:, par], 
                                                   s=2, color='deeppink')
-                        axs[i_par][j_par].scatter(clean_val[:, j_par], clean_val[:, i_par], 
+                        axs[par][j_par].scatter(clean_val[:, j_par], clean_val[:, par], 
                                                   s=2, color='green')
                     # Etichette sugli assi
-                    if i_par == len(par) - 1:
-                        axs[i_par][j_par].set_xlabel(f'{par[j_par]}')
+                    if par == len(column_names) - 1:
+                        axs[par][j_par].set_xlabel(f'{column_names[j_par]}')
                     if j_par == 0:
-                        axs[i_par][j_par].set_ylabel(f'{par[i_par]}')
-                    axs[i_par][j_par].set_xticks([])
-                    axs[i_par][j_par].set_yticks([])
+                        axs[par][j_par].set_ylabel(f'{column_names[par]}')
+                    axs[par][j_par].set_xticks([])
+                    axs[par][j_par].set_yticks([])
                 else:
-                    axs[i_par][j_par].axis('off')
+                    axs[par][j_par].axis('off')
 
             if log:
-                print(f'Line {[i_par]} done')
+                print(f'Line {[par]} done')
         fig.suptitle(f'Plots with threshold at chi2<{chi2_thresh:.2f} ({quantile_thresh} quantile)', y=0.9)
         # Mostra il plot
         if log:
             plt.show()
+
+#####################################################################################################################################################################
+
+    def params_analysis(self, evalSat, quantile_thresh=0.95, par_to_center=None, log=False):
+        """
+        Analyze parameter data with filtering and visualization.
+
+        This function processes a dataset by applying specific cutoff conditions, 
+        optionally centers the analysis on a parameter, and generates histograms 
+        for visualization. It can log details about each step for transparency.
+
+        Parameters:
+        ----------
+        evalSat : bool
+            Flag to indicate whether saturation checks should be considered during analysis.
+        
+        quantile_thresh : float, optional
+            Threshold for chi2 cutoff, given as a quantile (default is 0.95). Values above this 
+            quantile are removed. If greater than 1, it is interpreted as an absolute cutoff value.
+        
+        par_to_center : str, optional
+            Name of the parameter to center the analysis on. The parameter's values are filtered 
+            to within 3 standard deviations from the mean. Default is None.
+        
+        log : bool, optional
+            If True, detailed log messages are printed for each step of the analysis.
+
+        Returns:
+        --------
+        None
+            The function modifies the internal dataset and visualizes the results 
+            but does not return any value.
+        """
+        ################################
+        #### TAKE RESULTS FROM FILE ####
+        ################################
+        # Log the initial details of the analysis if logging is enabled.
+        if log == True:
+            print(f'Detector: {self.detector}\nFunction {self.fName} with parameters: {self.par_names}\nSaturation check: {evalSat}')
+    
+        # If a parameter to center is specified, ensure it exists in the dataset.
+        if par_to_center is not None:
+            if par_to_center not in self.par_names:
+                # Log an error if the parameter is invalid and exit the function.
+                print(f'Parameter {par_to_center} not found.\nPossible parameters for function {self.fName} are {self.par_names}.')
+                return
+        
+        ######################
+        #### APPLY CUTOFF ####
+        ######################
+
+        #####################################
+        #### dof<0 and inf chi2 removal  ####
+        #####################################
+        # Make a copy of the results to avoid modifying the original DataFrame.
+        clean_dof_val = self.results_df.copy()
+        prev_len = len(clean_dof_val)
+
+        # Remove rows where "dof" is infinite or less than or equal to zero.
+        clean_dof_val = clean_dof_val[clean_dof_val["dof"] != np.inf]
+        clean_dof_val = clean_dof_val[clean_dof_val["dof"] > 0]
+        
+        if log == True:
+            # Log the number of removed rows due to invalid "dof" values.
+            print(f'{prev_len - len(clean_dof_val)} waveforms have been removed for dof < 0 or chi2 == inf.')
+
+        #####################
+        #### CHI2 CUTOFF ####
+        #####################
+
+        if quantile_thresh > 1.:
+            # If `quantile_thresh` is greater than 1, interpret it as an absolute value and 
+            # compute the proportion of rows below this value.
+            quantile_thresh = len(clean_dof_val[clean_dof_val['chi2'] < quantile_thresh]) / len(clean_dof_val)
+        
+        # Determine the chi2 cutoff value based on the quantile.
+        chi2_thresh = np.quantile(clean_dof_val['chi2'], quantile_thresh)
+        
+        prev_len = len(clean_dof_val)   # Store the current length for logging.
+        # Filter rows with chi2 values above the computed threshold.
+        clean_val = clean_dof_val[clean_dof_val['chi2'] <= chi2_thresh]
+
+        if log == True:
+            # Log the number of removed rows and the chi2 threshold used.
+            print(f'{prev_len - len(clean_val)} waveforms have been removed for Cutoff above chi2 values of {chi2_thresh}, which is the {quantile_thresh} quantile.')
+        
+        #############################
+        #### PAR CENTERED CUTOFF ####
+        #############################
+        
+        if par_to_center is not None:
+            # Compute the mean and standard deviation for the parameter to center.
+            center_average = np.average(clean_val[par_to_center])
+            center_std = np.std(clean_val[par_to_center])
+
+            prev_len = len(clean_val)   # Store the current length for logging.
+            # Filter rows where the parameter is more than 3 standard deviations away from the mean.
+            clean_val = clean_val[clean_val[par_to_center] >= center_average - 3 * center_std]
+            clean_val = clean_val[clean_val[par_to_center] <= center_average + 3 * center_std]
+
+            if log == True:
+                # Log the number of removed rows due to the parameter cutoff.
+                print(f'{prev_len - len(clean_val)} waveforms have been removed for |{par_to_center} - average({par_to_center})| > 3 std({par_to_center}).')
+        
+        ####### PLOT FROM READ_ALLDATA_FIT #######
+        if log == True:
+            # Parameters to apply logarithmic binning (for spectra-like parameters).
+            spectra = ['curveMax', 'integral', 'arg__A']
+            
+            # Iterate over all columns in the DataFrame (excluding metadata columns).
+            for par in self.results_df.columns:
+                if par in ['folder_id', 'file_id', 'wfID', 'pkID', 'dof','satCheck']:
+                    continue    # Skip metadata columns.
+
+                # Determine the histogram bins: logarithmic for spectral parameters, linear otherwise.
+                if par in spectra:
+                    hist_bins = np.logspace(
+                        np.log10(max(min(clean_dof_val[par]),1e2)),
+                        np.log10(max(clean_dof_val[par])),
+                        600
+                    )
+                    clean_bins = np.logspace(
+                        np.log10(max(min(clean_val[par]),1e2)),
+                        np.log10(max(clean_val[par])),
+                        600
+                    )
+                else:
+                    hist_bins = np.linspace(min(clean_dof_val[par]), max(clean_dof_val[par]), 600)
+                    clean_bins = np.linspace(min(clean_val[par]), max(clean_val[par]), 600)
+                
+                # Create a two-panel plot for the current parameter.
+                fig, axs = plt.subplots(1,2, figsize=(16,4))
+                # Histogram of all data (before cutoff) and filtered data (overlapping).
+                axs[0].hist(clean_dof_val[par], bins=hist_bins, log=True, color = 'deeppink')
+                axs[0].hist(clean_val[par], bins=hist_bins, log=True, color = 'green')
+                # Histogram of filtered data only.
+                axs[1].hist(clean_val[par], bins=clean_bins, log=True, color = 'green')
+            
+                # Add titles and formatting.
+                plt.suptitle(f'{par}')
+                axs[0].set_title('{} all data and below cutoff (chi2 < {:.2f})'.format(par,chi2_thresh))
+                axs[1].set_title('{} below cutoff only (chi2 < {:.2f})'.format(par,chi2_thresh))
+                
+                if par in spectra:  # Apply log scale to the x-axis for spectral parameters.
+                    axs[0].set_xscale('log')
+                    axs[1].set_xscale('log')
+                plt.show()
+
+    def spectrum_analysis(self, quantile_thresh=0.95, smoothing_radius=5, der_fit_radius=2, falsePositiveAcceptance=0.05, par_to_center=None, log=False, fullOutput = False):
+        return
