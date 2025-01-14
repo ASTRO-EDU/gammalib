@@ -737,54 +737,7 @@ class Eventlist_fitting:
 
 #####################################################################################################################################################################
 
-    def params_analysis(self, evalSat, quantile_thresh=0.95, par_to_center=None, log=False):
-        """
-        Analyze parameter data with filtering and visualization.
-
-        This function processes a dataset by applying specific cutoff conditions, 
-        optionally centers the analysis on a parameter, and generates histograms 
-        for visualization. It can log details about each step for transparency.
-
-        Parameters:
-        ----------
-        evalSat : bool
-            Flag to indicate whether saturation checks should be considered during analysis.
-        
-        quantile_thresh : float, optional
-            Threshold for chi2 cutoff, given as a quantile (default is 0.95). Values above this 
-            quantile are removed. If greater than 1, it is interpreted as an absolute cutoff value.
-        
-        par_to_center : str, optional
-            Name of the parameter to center the analysis on. The parameter's values are filtered 
-            to within 3 standard deviations from the mean. Default is None.
-        
-        log : bool, optional
-            If True, detailed log messages are printed for each step of the analysis.
-
-        Returns:
-        --------
-        None
-            The function modifies the internal dataset and visualizes the results 
-            but does not return any value.
-        """
-        ################################
-        #### TAKE RESULTS FROM FILE ####
-        ################################
-        # Log the initial details of the analysis if logging is enabled.
-        if log == True:
-            print(f'Detector: {self.detector}\nFunction {self.fName} with parameters: {self.par_names}\nSaturation check: {evalSat}')
-    
-        # If a parameter to center is specified, ensure it exists in the dataset.
-        if par_to_center is not None:
-            if par_to_center not in self.par_names:
-                # Log an error if the parameter is invalid and exit the function.
-                print(f'Parameter {par_to_center} not found.\nPossible parameters for function {self.fName} are {self.par_names}.')
-                return
-        
-        ######################
-        #### APPLY CUTOFF ####
-        ######################
-
+    def __clean_fitresults(self, quantile_thresh=0.95, par_to_center=None, log=False):
         #####################################
         #### dof<0 and inf chi2 removal  ####
         #####################################
@@ -838,6 +791,57 @@ class Eventlist_fitting:
                 # Log the number of removed rows due to the parameter cutoff.
                 print(f'{prev_len - len(clean_val)} waveforms have been removed for |{par_to_center} - average({par_to_center})| > 3 std({par_to_center}).')
         
+        return clean_dof_val, clean_val, chi2_thresh
+
+    def params_analysis(self, quantile_thresh=0.95, par_to_center=None, log=False):
+        """
+        Analyze parameter data with filtering and visualization.
+
+        This function processes a dataset by applying specific cutoff conditions, 
+        optionally centers the analysis on a parameter, and generates histograms 
+        for visualization. It can log details about each step for transparency.
+
+        Parameters:
+        ----------
+        evalSat : bool
+            Flag to indicate whether saturation checks should be considered during analysis.
+        
+        quantile_thresh : float, optional
+            Threshold for chi2 cutoff, given as a quantile (default is 0.95). Values above this 
+            quantile are removed. If greater than 1, it is interpreted as an absolute cutoff value.
+        
+        par_to_center : str, optional
+            Name of the parameter to center the analysis on. The parameter's values are filtered 
+            to within 3 standard deviations from the mean. Default is None.
+        
+        log : bool, optional
+            If True, detailed log messages are printed for each step of the analysis.
+
+        Returns:
+        --------
+        None
+            The function modifies the internal dataset and visualizes the results 
+            but does not return any value.
+        """
+        ################################
+        #### TAKE RESULTS FROM FILE ####
+        ################################
+        # Log the initial details of the analysis if logging is enabled.
+        if log == True:
+            print(f'Detector: {self.detector}\nFunction {self.fName} with parameters: {self.par_names}')
+
+        # If a parameter to center is specified, ensure it exists in the dataset.
+        if par_to_center is not None:
+            if par_to_center not in self.par_names:
+                # Log an error if the parameter is invalid and exit the function.
+                print(f'Parameter {par_to_center} not found.\nPossible parameters for function {self.fName} are {self.par_names}.')
+                return
+
+        ######################
+        #### APPLY CUTOFF ####
+        ######################
+        clean_dof_val, clean_val, chi2_thresh = self.__clean_fitresults(quantile_thresh=quantile_thresh, par_to_center=par_to_center,  log=log)
+        
         ####### PLOT FROM READ_ALLDATA_FIT #######
         if log == True:
             # Parameters to apply logarithmic binning (for spectra-like parameters).
@@ -874,13 +878,282 @@ class Eventlist_fitting:
             
                 # Add titles and formatting.
                 plt.suptitle(f'{par}')
-                axs[0].set_title('{} all data and below cutoff (chi2 < {:.2f})'.format(par,chi2_thresh))
-                axs[1].set_title('{} below cutoff only (chi2 < {:.2f})'.format(par,chi2_thresh))
+                axs[0].set_title('{} all data and below cutoff (chi2 < {:.2f})'.format(par, chi2_thresh))
+                axs[1].set_title('{} below cutoff only (chi2 < {:.2f})'.format(par, chi2_thresh))
                 
                 if par in spectra:  # Apply log scale to the x-axis for spectral parameters.
                     axs[0].set_xscale('log')
                     axs[1].set_xscale('log')
                 plt.show()
 
-    def spectrum_analysis(self, quantile_thresh=0.95, smoothing_radius=5, der_fit_radius=2, falsePositiveAcceptance=0.05, par_to_center=None, log=False, fullOutput = False):
-        return
+#####################################################################################################################################################################
+
+    def get_spectrum_peak(self, curve_max, smoothing_radius = 5, der_fit_radius = 2, falsePositiveAcceptance = 0.05, log=False):
+        # Generate logarithmic bins for the input data
+        curve_bins = np.logspace(np.log10(min(curve_max)),
+                                 np.log10(max(curve_max)),
+                                 600
+                     )
+        curve_hist, _ = np.histogram(curve_max, bins=curve_bins)
+
+        # Select the relevant range for the spectrum by focusing on the highest density region
+        start_radius = 100
+        start_center = 200
+        start_spectrum = np.argmax(curve_hist[start_center - start_radius : start_center + start_radius]) + (start_center - start_radius)
+
+        # Identify the end of the spectrum by finding the first zero after the peak
+        try:
+            first_zero = np.where(curve_hist[start_spectrum:] == 0)[0][0] + start_spectrum
+        except:
+            first_zero = len(curve_hist) - 1
+            
+        end_spectrum = min(len(curve_hist)-1,first_zero)
+        
+        # Reduce the histogram to the relevant range
+        curve_hist_redux = curve_hist[start_spectrum:end_spectrum]
+        
+        # Smooth the spectrum and find the local extrema
+        smooth_spectrum, max_points, min_points = self.find_extremes(curve_hist_redux, 
+                                                                     smoothing_radius=smoothing_radius, 
+                                                                     der_radius=der_fit_radius)
+
+        # Adjust extrema positions based on smoothing parameters
+        max_points = np.subtract(max_points, smoothing_radius+der_fit_radius)
+        min_points = np.subtract(min_points, smoothing_radius+der_fit_radius)
+        
+        # Ensure equal numbers of max and min points by truncating the excess
+        while not len(min_points) == len(max_points):
+            if len(min_points) > len(max_points):
+                min_points = np.delete(min_points, -1)
+            else:
+                max_points = np.delete(max_points, -1)
+        
+        # Define peak ends based on asymmetry assumptions 
+        peak_asymmetry = 0.5
+        peak_end = [min_points[i_peak]+int((2+peak_asymmetry)*(max_points[i_peak]-min_points[i_peak])) for i_peak in range(len(min_points))]
+
+        # Create a flattened curve with peaks removed
+        flat_curve = [x for x in curve_hist_redux]
+        for k in range(len(curve_hist_redux)):
+            for i_min in range(len(min_points)):
+                if (k > min_points[i_min] + smoothing_radius + der_fit_radius) & (k <= peak_end[i_min] + smoothing_radius + der_fit_radius):
+                    x_start = min_points[i_min] + der_fit_radius
+                    y_start = smooth_spectrum[x_start]
+                    
+                    try:
+                        x_end = peak_end[i_min] + der_fit_radius
+                        y_end = smooth_spectrum[x_end]
+                    except:
+                        x_end = len(smooth_spectrum)-1
+                        y_end = smooth_spectrum[x_end]
+                    
+                    # Linear interpolation to flatten the peak
+                    flat_curve[k] = (y_end - y_start) / (x_end - x_start) * (k - x_start) + y_start
+
+        # If log is True, visualize the spectrum and smoothing steps
+        if log == True:
+            fig, axs = plt.subplots(1,2, figsize=(16,4))
+            axs[0].plot(range(len(curve_hist)), curve_hist)
+            axs[0].axvline(start_spectrum, color='g', linestyle='--')
+            axs[0].axvline(end_spectrum, color='r', linestyle='--')
+            axs[0].set_yscale('log')
+            axs[1].plot(range(len(curve_hist_redux)), curve_hist_redux)
+            axs[1].set_yscale('log')
+            plt.show()
+            
+            plt.figure()
+            plt.plot(range(len(curve_hist_redux)), curve_hist_redux)
+            plt.plot(np.add(range(len(smooth_spectrum)),smoothing_radius), smooth_spectrum)
+            
+            for i_max in range(len(max_points)):
+                plt.axvspan(xmin=min_points[i_max]+der_fit_radius+smoothing_radius, 
+                            xmax=peak_end[i_max]+der_fit_radius+smoothing_radius, 
+                            color='g', alpha=0.2)
+                plt.axvline(max_points[i_max]+der_fit_radius+smoothing_radius,color='r',linestyle='--')
+            plt.yscale('log')
+            plt.show()
+        
+        # Estimate background from the flattened curve
+        bkg=[ this_bkg for this_bkg in flat_curve]
+        smooth_bkg = [np.divide(np.sum(bkg[k-smoothing_radius:k+smoothing_radius]), 2 * smoothing_radius) 
+                      for k in np.add(range(len(bkg) - 2 * smoothing_radius),smoothing_radius)]
+        bkg_std = np.sqrt(np.divide(np.sum([(bkg[k + smoothing_radius] - smooth_bkg[k]) ** 2 
+                                            for k in range(len(smooth_bkg))]), len(smooth_bkg)))
+        
+        # If log is True, visualize the background estimation
+        if log == True:
+            plt.figure()
+            plt.plot(range(len(curve_hist_redux)), curve_hist_redux)
+            plt.plot(range(len(smooth_bkg)), smooth_bkg)
+            plt.show()
+
+        # Subtract the background from the spectrum
+        spectrum_bkgsub = np.subtract(curve_hist_redux[smoothing_radius:-smoothing_radius], smooth_bkg)
+    
+        # Initialize variables for peak fitting
+        fitPeakPosition = []
+        fitPeakSigma = []
+        fitPeakA = []
+        fitPeakMax = []
+        fitPeakSignificance = []
+        peak_fit_radius = 30    # Heuristic value for peak fitting radius
+        areTherePeaks = True
+        atPeak = 0
+
+        # Iteratively fit and remove peaks
+        while areTherePeaks == True:
+            try:
+                # Find the most prominent peak in the background-subtracted spectrum
+                best_peak = np.argmax(spectrum_bkgsub)
+                
+                # Determine the left and right limits of the peak
+                if best_peak-peak_fit_radius > 0:
+                    left_limit = np.where(spectrum_bkgsub[best_peak-peak_fit_radius:best_peak] == 
+                                          min(spectrum_bkgsub[best_peak-peak_fit_radius:best_peak]))[0][0] + best_peak-peak_fit_radius
+                else:
+                    left_limit = np.where(spectrum_bkgsub[:best_peak] == min(spectrum_bkgsub[:best_peak]))[0][0]
+    
+                if best_peak+peak_fit_radius < len(spectrum_bkgsub) - 1:
+                    right_limit = np.where(spectrum_bkgsub[best_peak:best_peak+peak_fit_radius] == 
+                                           min(spectrum_bkgsub[best_peak:best_peak+peak_fit_radius]))[0][0] + best_peak
+                else:
+                    right_limit = np.where(spectrum_bkgsub[best_peak:] == min(spectrum_bkgsub[best_peak:]))[0][0] + best_peak
+
+                # Isolate the peak and fit a Gaussian
+                isolate_peak = spectrum_bkgsub[left_limit:right_limit]
+                starting_pars = [len(isolate_peak) / 2., len(isolate_peak) / 8., max(spectrum_bkgsub) * 20]
+                [x0_peak, sigma_peak, A_peak], rest = curve_fit(lambda x, x0, std, A: A*stats.norm.pdf(x, loc=x0, scale=std), 
+                                                                range(len(isolate_peak)), isolate_peak, p0=starting_pars)
+                        
+                best_peak_curve = [A_peak*stats.norm.pdf(x,loc=x0_peak,scale = sigma_peak) for x in range(len(isolate_peak))]
+
+                # Update the peak information
+                this_peak_position = x0_peak + left_limit
+                this_peak_max = max(best_peak_curve)
+                left_side = spectrum_bkgsub[:left_limit]
+                middle = np.subtract(isolate_peak,best_peak_curve)
+                right_side = spectrum_bkgsub[right_limit:]
+                curve_peak_removed = np.concatenate((left_side,np.concatenate((middle,right_side)))) 
+
+                # Calculate peak significance and validate
+                thisPeakSignificance = (this_peak_max-curve_peak_removed[int(this_peak_position)])/bkg_std
+                falsePeakProbability = stats.norm.sf(thisPeakSignificance)
+    
+                if falsePeakProbability < falsePositiveAcceptance and not A_peak < 0:
+                    atPeak = atPeak + 1
+                    fitPeakPosition.append(this_peak_position+smoothing_radius)
+                    fitPeakSigma.append(sigma_peak)
+                    fitPeakA.append(A_peak)
+                    fitPeakMax.append(this_peak_max)
+                    fitPeakSignificance.append(thisPeakSignificance)
+
+                    # Optional logging and visualization
+                    if log == True:
+        
+                        fig_thispeak, axs_thispeak = plt.subplots(1,2, figsize=(16,4))
+                        axs_thispeak[0].plot(range(len(isolate_peak)), isolate_peak)
+                        axs_thispeak[0].plot(range(len(isolate_peak)), 
+                                             [starting_pars[2]*stats.norm.pdf(x, loc=starting_pars[0], scale=starting_pars[1]) 
+                                              for x in range(len(isolate_peak))], color='g')
+                        axs_thispeak[0].plot(range(len(best_peak_curve)), best_peak_curve, color='m')
+                        axs_thispeak[0].set_title(f'Peak {atPeak} fit')
+                        
+                        axs_thispeak[1].plot(range(len(spectrum_bkgsub)), spectrum_bkgsub, color='deeppink')
+                        axs_thispeak[1].plot(range(len(curve_peak_removed)), curve_peak_removed, color='green')
+                        axs_thispeak[1].plot(range(len(curve_peak_removed)), [5*bkg_std for x in range(len(curve_peak_removed))], color='orange', linestyle = ':')
+                        axs_thispeak[1].axvline(best_peak, color='r', linestyle = '--')
+                        axs_thispeak[1].axvspan(xmin=left_limit, xmax=right_limit, color='g', alpha=0.2)
+                        axs_thispeak[1].set_title(f'Spectrum with peaks up to {atPeak} subtracted')
+
+                        plt.show()
+        
+                        print('Peak {} with center at {:.2f} and max = {:.2f} has been subtracted.'.format(atPeak,this_peak_position,this_peak_max))
+                        print('Probability of false peak (white noise bkg assumption) {:.2f}'.format(falsePeakProbability))
+                    
+                    # Remove the fitted peak from the spectrum
+                    spectrum_bkgsub = curve_peak_removed
+                else:
+                    # If the false positive probability exceeds the threshold, stop looking for peaks
+                    areTherePeaks = False
+            except:
+                # Catch any exceptions and stop the peak fitting process
+                areTherePeaks = False
+
+        # Check if any peaks were successfully identified
+        if len(fitPeakPosition) > 0 :
+            if log == True:
+                # Log the summary of the remaining peaks and their properties
+                print(f'---\nRemaining peaks have false positive probability > {falsePositiveAcceptance}')
+                print(f'The first peak FWHM is {2*np.sqrt(2*np.log(2))*fitPeakSigma[0]}')
+
+                # Visualize the spectrum with the identified peaks
+                plt.figure()
+                plt.plot(range(len(curve_hist_redux)), curve_hist_redux)
+                
+                # Mark the identified peak positions
+                for i_peak in range(len(fitPeakPosition)):
+                    plt.axvline(fitPeakPosition[i_peak], color='r',linestyle='--')
+                plt.yscale('log')
+                plt.title('Identified peaks')
+                plt.show()
+
+                # Print the sorted peaks with their indices
+                print('Sorted peaks')
+                print('idx\t Peak position')
+                for i_peak, peakPos in enumerate(np.sort(fitPeakPosition)):
+                    print('{}\t{:.2f}'.format(i_peak,peakPos))
+            
+            # Return the identified peak properties
+            return fitPeakPosition, fitPeakSigma, fitPeakA, fitPeakMax, fitPeakSignificance
+
+        else:
+            # If no peaks were found, log a message if logging is enabled
+            if log == True:
+                print(f'---\nNo peak could be fit. Returning position of spectrum maximum.')
+            
+            # Return the position of the spectrum's maximum as a fallback
+            return best_peak
+        
+
+    def spectrum_analysis(self, smoothing_radius=5, quantile_thresh=0.95, par_to_center=None, 
+                          der_fit_radius=2, falsePositiveAcceptance=0.05, fullOutput = False, 
+                          log=False):
+        ################################
+        #### TAKE RESULTS FROM FILE ####
+        ################################
+        # Log the initial details of the analysis if logging is enabled.
+        if log == True:
+            print(f'Detector: {self.detector}\nFunction {self.fName} with parameters: {self.par_names}')
+
+        # If a parameter to center is specified, ensure it exists in the dataset.
+        if par_to_center is not None:
+            if par_to_center not in self.par_names:
+                # Log an error if the parameter is invalid and exit the function.
+                print(f'Parameter {par_to_center} not found.\nPossible parameters for function {self.fName} are {self.par_names}.')
+                return
+
+        ######################
+        #### APPLY CUTOFF ####
+        ######################
+        _, clean_val, _ = self.__clean_fitresults(quantile_thresh=quantile_thresh, par_to_center=par_to_center,  log=log)
+
+        spectrum_peaks = self.get_spectrum_peak(clean_val['curveMax'], smoothing_radius, der_fit_radius, falsePositiveAcceptance, log)
+
+        if len(spectrum_peaks) > 1:
+            [peakPos, peakSigma, peakA, peakMax, peakSignificance] = spectrum_peaks
+            
+            if fullOutput == False:
+                if log == True:
+                    print(f'Returning FWHM of the first peak')
+                return 2*np.sqrt(2*np.log(2))*peakSigma[0]
+    
+            else:
+                if log == True:
+                    print(f'Returning all fit and derived parameters for each peak: position, sigma, amplitude, maximum and significance')
+                return peakPos, peakSigma, peakA, peakMax, peakSignificance
+        else:
+            spectrum_max = spectrum_peaks
+
+            print(f'ALERT: NO PEAKS FOUND. Returning position of spectrum maximum.')
+            
+            return spectrum_max
