@@ -574,7 +574,7 @@ class Eventlist_fitting:
         self.__parameters_checks(fName, detector=detector, mode=mode)
 
         # Initialize or update blockID counter
-        if not hasattr(self, '_blockID_counter'):
+        if mode=='w' or (not hasattr(self, '_blockID_counter')):
             self._blockID_counter = 1
         else:
             self._blockID_counter += 1
