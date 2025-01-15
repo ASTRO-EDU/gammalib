@@ -27,8 +27,13 @@ import h5py
 import ast
 
 
-
-sys.path.append('/home/gamma/workspace/gammalib')
+# Get the directory of the current file
+current_dir = os.path.dirname(os.path.abspath(__file__))
+# Get the parent directory (one level up)
+parent_dir = os.path.abspath(os.path.join(current_dir, '..'))
+# Add the parent directory to sys.path
+sys.path.append(parent_dir)
+# sys.path.append('/home/gamma/workspace/gammalib')
 import expfuncs.exp as expfuncs
 
 class Eventlist_fitting:
