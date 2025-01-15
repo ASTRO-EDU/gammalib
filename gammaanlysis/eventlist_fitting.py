@@ -51,7 +51,10 @@ class Eventlist_fitting:
         der_range = np.add(range(len(smooth_array)-2*der_radius),der_radius)
         array_der = []
         for fit_center in der_range:
-            [m_fit, q_fit], rest = curve_fit(lambda x, m, q: m*x+q, range(2*der_radius), smooth_array[fit_center - der_radius : fit_center + der_radius])
+            [m_fit, q_fit], rest = curve_fit(
+                lambda x, m, q: m*x+q, 
+                range(2*der_radius), smooth_array[fit_center - der_radius : fit_center + der_radius]
+            )
             array_der.append(m_fit)
         #### identify max and min points
         max_points = []
@@ -122,8 +125,18 @@ class Eventlist_fitting:
     #### process_file ####
     ###########################
     def __parameters_checks(self,
-                            fName: Literal['double_exp', 'convolution_func', 'single_exp', 'orsa_function', 'semigaussian_shaper', 'semigaussian_shaper_with_tail'] = 'double_exp', 
-                            detector: Literal['SiPM', 'PMT'] = 'SiPM'):
+                            fName: Literal['double_exp', 'convolution_func', 'single_exp', 'orsa_function', 
+                                           'semigaussian_shaper', 'semigaussian_shaper_with_tail'] = 'double_exp', 
+                            detector: Literal['SiPM', 'PMT'] = 'SiPM',
+                            mode: Literal['w', 'a'] = 'w'):
+        if mode == 'a':
+            if hasattr(self, 'results_df') and isinstance(self.results_df, pd.DataFrame):
+                # Check if metadata matches
+                if (self.results_df.attrs.get('fName') != fName or 
+                    self.results_df.attrs.get('detector') != detector):
+                    raise ValueError(
+                        "Metadata mismatch: Existing DataFrame has different 'fName' or 'detector' attributes."
+                    )
         # Check detector type 
         if detector not in ['SiPM', 'PMT']:
             print(f'Detector {detector} not found. Cannot proceed. \nAvailable detectors are PMT and SiPM')
@@ -464,54 +477,146 @@ class Eventlist_fitting:
                     ##traceback.print_exc()
                     continue
                 j = j + 1
-        else:
-            if log == True:
-                print('No peaks found.')
+        else:            
+            print(f'Block {self._blockID_counter} | Waveform {i_wf}: No peaks found.')
         return peak_id, chisquare, all_pars, all_covs, max_curve, integ, dof, satCheck
 
 #####################################################################################################################################################################
-    ####
-    #### takes one file and returns fit parameters for all peaks in it
+    
     def process_arr(self, 
                     data: npt.NDArray[np.int_],
-                    fName: Literal['double_exp', 'convolution_func', 'single_exp', 'orsa_function', 'semigaussian_shaper', 'semigaussian_shaper_with_tail'] = 'double_exp', 
+                    fName: Literal['double_exp', 'convolution_func', 'single_exp', 'orsa_function', 
+                                   'semigaussian_shaper', 'semigaussian_shaper_with_tail'] = 'double_exp', 
                     detector: Literal['SiPM', 'PMT'] = 'SiPM', 
                     evalSat: bool = False, 
                     printPlot: bool = False,
                     startEvent: int = 0, 
                     endEvent: int = -1,
-                    log: bool = False):
+                    log: bool = False,
+                    mode: Literal['w', 'a'] = 'w'):
+        """
+        Processes a dataset and extracts fit parameters for all peaks in the data.
+
+        Parameters
+        ----------
+        `data` : numpy.ndarray
+            A 2D array containing the dataset to process, where each row represents a waveform.
+        `fName` : {'double_exp', 'convolution_func', 'single_exp', 'orsa_function', 
+                'semigaussian_shaper', 'semigaussian_shaper_with_tail'}, default='double_exp'
+            The name of the fitting function to use. Determines the model applied during peak fitting.
+        `detector` : {'SiPM', 'PMT'}, default='SiPM'
+            The type of detector associated with the dataset. Used to configure specific fitting behavior.
+        `evalSat` : bool, default=False
+            Whether to evaluate waveform saturation. If True, additional checks for saturation will be performed.
+        `printPlot` : bool, default=False
+            If True, plots of the waveforms and fits will be displayed for visual inspection.
+        `startEvent` : int, default=0
+            The index of the first waveform to process in the dataset.
+        `endEvent` : int, default=-1
+            The index of the last waveform to process in the dataset. Use -1 to process all waveforms from `startEvent`.
+        `log` : bool, default=False
+            If True, verbose logging will be printed to the console, including details of the fitting process.
+        `mode` : {'w', 'a'}, default='w'
+        Determines whether the results should overwrite the previous DataFrame ('w') 
+        or append to it ('a').
+
+        Returns
+        -------
+        pandas.DataFrame
+            A DataFrame containing the following columns:
+            - `wfID`: The waveform ID.
+            - `pkID`: The peak ID within the waveform.
+            - `chi2`: The chi-squared value of the fit for each peak.
+            - `curveMax`: The maximum value of the fitted curve.
+            - `integral`: The integral of the fitted curve.
+            - `dof`: Degrees of freedom for the fit.
+            - `satCheck`: A flag indicating if the waveform was saturated.
+            - `arg__<param>`: The value of each fit parameter (e.g., `arg__amplitude`, `arg__sigma`, etc.).
+            - `covs__<param>`: The covariance values for each fit parameter.
+
+            The DataFrame also includes metadata attributes:
+            - `fName`: The name of the fitting function used.
+            - `detector`: The type of detector used.
+
+        Notes
+        -----
+        - The method processes each waveform in the specified range (`startEvent` to `endEvent`) individually.
+        - Each waveform is analyzed using the `__process_wf` method, which performs the actual peak detection and fitting.
+        - Fit results for each waveform and its peaks are accumulated in a structured format and returned as a DataFrame.
+        - This method is designed to handle large datasets efficiently, with the ability to enable or disable logging and plotting as needed.
+
+        Raises:
+        -------
+        `ValueError`
+            If 'mode' is 'a' and the metadata (fName or detector) do not match the existing DataFrame.
+
+        Example
+        -------
+        >>> data = np.random.randint(0, 100, size=(1000, 512))  # Simulated dataset
+        >>> results_df = obj.process_arr(data, 
+                                        fName='double_exp', 
+                                        detector='SiPM', 
+                                        evalSat=True, 
+                                        printPlot=False, 
+                                        startEvent=0, 
+                                        endEvent=100, 
+                                        log=True)
+        >>> print(results_df.head())
         
-        # INPUT PARAMETER CHECKS 
-        self.__parameters_checks(fName, detector=detector)
-        #######################
-        #### RETURN VALUES ####
-        #######################
-        results = []
+        """
+        
+        # Validate input parameters
+        self.__parameters_checks(fName, detector=detector, mode=mode)
+
+        # Initialize or update blockID counter
+        if not hasattr(self, '_blockID_counter'):
+            self._blockID_counter = 1
+        else:
+            self._blockID_counter += 1
+        blockID = self._blockID_counter
+
+        ########################
+        #### INITIALIZATION ####
+        ########################
+        results = [] # Placeholder for results
+
         if log == True:
-            print(f'##############################\nFitting function {self.fToFit.__name__} on a {detector} entire tensor')
-        #####
+            print(f'##############################\n'
+                  f'Processing with blockID={blockID} | Function: {self.fToFit.__name__} | Detector: {detector}')
+
+        # Initialize a dictionary to store results for each waveform and peak
         results = {
-            "wfID": [],
-            "pkID": [],
-            "chi2": [],
-            "curveMax": [],
-            "integral": [],
-            "dof": [],
-            "satCheck": [],
+            "blockID": [],   # Block array ID
+            "wfID": [],      # Waveform ID
+            "pkID": [],      # Peak ID
+            "chi2": [],      # Chi-squared values for fits
+            "curveMax": [],  # Maximum values of the fitted curves
+            "integral": [],  # Integral of the curve
+            "dof": [],       # Degrees of freedom in the fit
+            "satCheck": [],  # Saturation status
         }
-        # Add fit parameters with descriptive keys
+            
+        # Add keys for fit parameters and their covariance matrices
         for k in self.__par_names:
-            results[f'arg__{k}'] = []
-        # Add covariance matrix of parameters
-        for k in self.__par_names:
-            results[f'covs__{k}'] = []
-        #####
+            results[f'arg__{k}'] = []  # Fit parameter values
+            results[f'covs__{k}'] = []  # Covariance values for each parameter
+
+        ########################
+        #### DATA SELECTION ####
+        ########################
+        # Restrict the processing to the specified range of events
+        if endEvent==-1: 
+            endEvent = len(data)
         data_section = data[startEvent:endEvent]
-        prevSat = False
+        prevSat = False  # Track if the previous waveform was saturated
+
+        #############################
+        #### PROCESS EACH EVENT ####
+        #############################
         for y, i in zip(data_section, range(len(data_section))):
-            i_wf = i + startEvent
-            # Process the waveform
+            i_wf = i + startEvent  # Current waveform index
+            
+            # Process the current waveform and retrieve results
             res__y = self.__process_wf(
                 y=y,
                 i_wf=i_wf,
@@ -519,26 +624,49 @@ class Eventlist_fitting:
                 evalSat=evalSat, 
                 log=log,
                 prevSat=prevSat)
+            
+            # Unpack the results from the processed waveform
             peak_id__y, chisquare__y, all_pars__y, all_covs__y, max_curve__y, integ__y, dof__y, sat__y = res__y
+
+            # Iterate through each peak identified in the waveform
             for j in range(len(peak_id__y)):
-                results["wfID"].append(peak_id__y[j][0]),
-                results["pkID"].append(peak_id__y[j][1]),
-                results["chi2"].append(chisquare__y[j]),
-                results["curveMax"].append(max_curve__y[j]),
-                results["integral"].append(integ__y[j]),
-                results["dof"].append(dof__y[j]),
-                results["satCheck"].append(sat__y[j]),
-                # Add fit parameters with descriptive keys
+                results["blockID"].append(blockID)          # Assign blockID to each result
+                results["wfID"].append(peak_id__y[j][0])    # Append waveform ID
+                results["pkID"].append(peak_id__y[j][1])    # Append peak ID
+                results["chi2"].append(chisquare__y[j])     # Append chi-squared value
+                results["curveMax"].append(max_curve__y[j]) # Append curve maximum value
+                results["integral"].append(integ__y[j])     # Append curve integral
+                results["dof"].append(dof__y[j])            # Append degrees of freedom
+                results["satCheck"].append(sat__y[j])       # Append saturation status
+                
+                # Append fit parameters with descriptive keys
                 for k, v in zip(self.__par_names, all_pars__y[j]):
                     results[f'arg__{k}'].append(v) 
-                # Add covariance matrix of parameters
+                
+                # Append covariance matrix values for each parameter
                 for k, v in zip(self.__par_names, all_covs__y[j]):
                     results[f'covs__{k}'].append(v) 
-        # Convert the list of dictionaries to a pandas DataFrame
+        
+        ###########################
+        #### CONVERT TO OUTPUT ####
+        ###########################
+        # Convert results dictionary to a pandas DataFrame for easier analysis
         results_df = pd.DataFrame(results)
+        
+        # Add metadata as attributes to the DataFrame
         results_df.attrs['fName'] = self.fName
         results_df.attrs['detector'] = self.detector
-        self.results_df = results_df
+
+        # Handle mode ('w' or 'a')
+        if mode == 'w':
+            self.results_df = results_df
+        elif mode == 'a':
+            if hasattr(self, 'results_df') and self.results_df is not None:
+                self.results_df = pd.concat([self.results_df, results_df], ignore_index=True)
+            else:
+                self.results_df = results_df
+
+        # Return the DataFrame containing all the results
         return results_df
 #####################################################################################################################################################################
     def get_args_fitted(self):
