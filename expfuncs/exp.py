@@ -1,6 +1,6 @@
 import numpy as np
-from math import sqrt, factorial
-from scipy.special import erf
+from math import sqrt
+from scipy.special import erf, factorial
 import math
 
 def apply_exp(t, y0, t_start, gamma, a):
