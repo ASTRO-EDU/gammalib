@@ -672,7 +672,7 @@ class Eventlist_fitting:
                 self.results_df = results_df
 
         # Return the DataFrame containing all the results
-        return results_df
+        return self.results_df
 #####################################################################################################################################################################
     def get_args_fitted(self):
         if self.results_df is None:
