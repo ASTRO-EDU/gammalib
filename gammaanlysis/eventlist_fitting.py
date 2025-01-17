@@ -695,6 +695,11 @@ class Eventlist_fitting:
         # Restituisci solo le colonne corrispondenti
         return self.results_df[columns_covs]
     
+    def get_fitresults(self):
+        if self.results_df is None:
+            raise Exception("Please fit a function by calling `process_arr`")
+        return self.results_df
+    
 #####################################################################################################################################################################
     def write_fitresults(self, file_path: str):
         """
@@ -926,7 +931,7 @@ class Eventlist_fitting:
         
         return clean_dof_val, clean_val, chi2_thresh
 
-    def params_analysis(self, quantile_thresh=0.95, par_to_center=None, log=False):
+    def params_analysis(self, quantile_thresh=0.95, par_to_center=None):
         """
         Analyze parameter data with filtering and visualization.
 
@@ -946,9 +951,6 @@ class Eventlist_fitting:
         par_to_center : str, optional
             Name of the parameter to center the analysis on. The parameter's values are filtered 
             to within 3 standard deviations from the mean. Default is None.
-        
-        log : bool, optional
-            If True, detailed log messages are printed for each step of the analysis.
 
         Returns:
         --------
@@ -976,48 +978,48 @@ class Eventlist_fitting:
         clean_dof_val, clean_val, chi2_thresh = self.__clean_fitresults(quantile_thresh=quantile_thresh, par_to_center=par_to_center,  log=log)
         
         ####### PLOT FROM READ_ALLDATA_FIT #######
-        if log == True:
-            # Parameters to apply logarithmic binning (for spectra-like parameters).
-            spectra = ['curveMax', 'integral', 'arg__A']
-            
-            # Iterate over all columns in the DataFrame (excluding metadata columns).
-            for par in self.results_df.columns:
-                if par in ['folder_id', 'file_id', 'wfID', 'pkID', 'dof','satCheck']:
-                    continue    # Skip metadata columns.
+        # Parameters to apply logarithmic binning (for spectra-like parameters).
+        spectra = ['curveMax', 'integral', 'arg__A']
+        df_args = self.get_args_fitted()
+        
+        # Iterate over all columns in the DataFrame (excluding metadata columns).
+        for par in df_args.columns:
+            if par in ['folder_id', 'file_id', 'wfID', 'pkID', 'dof','satCheck']:
+                continue    # Skip metadata columns.
 
-                # Determine the histogram bins: logarithmic for spectral parameters, linear otherwise.
-                if par in spectra:
-                    hist_bins = np.logspace(
-                        np.log10(max(min(clean_dof_val[par]),1e2)),
-                        np.log10(max(clean_dof_val[par])),
-                        600
-                    )
-                    clean_bins = np.logspace(
-                        np.log10(max(min(clean_val[par]),1e2)),
-                        np.log10(max(clean_val[par])),
-                        600
-                    )
-                else:
-                    hist_bins = np.linspace(min(clean_dof_val[par]), max(clean_dof_val[par]), 600)
-                    clean_bins = np.linspace(min(clean_val[par]), max(clean_val[par]), 600)
-                
-                # Create a two-panel plot for the current parameter.
-                fig, axs = plt.subplots(1,2, figsize=(16,4))
-                # Histogram of all data (before cutoff) and filtered data (overlapping).
-                axs[0].hist(clean_dof_val[par], bins=hist_bins, log=True, color = 'deeppink')
-                axs[0].hist(clean_val[par], bins=hist_bins, log=True, color = 'green')
-                # Histogram of filtered data only.
-                axs[1].hist(clean_val[par], bins=clean_bins, log=True, color = 'green')
+            # Determine the histogram bins: logarithmic for spectral parameters, linear otherwise.
+            if par in spectra:
+                hist_bins = np.logspace(
+                    np.log10(max(min(clean_dof_val[par]),1e2)),
+                    np.log10(max(clean_dof_val[par])),
+                    600
+                )
+                clean_bins = np.logspace(
+                    np.log10(max(min(clean_val[par]),1e2)),
+                    np.log10(max(clean_val[par])),
+                    600
+                )
+            else:
+                hist_bins = np.linspace(min(clean_dof_val[par]), max(clean_dof_val[par]), 600)
+                clean_bins = np.linspace(min(clean_val[par]), max(clean_val[par]), 600)
             
-                # Add titles and formatting.
-                plt.suptitle(f'{par}')
-                axs[0].set_title('{} all data and below cutoff (chi2 < {:.2f})'.format(par, chi2_thresh))
-                axs[1].set_title('{} below cutoff only (chi2 < {:.2f})'.format(par, chi2_thresh))
-                
-                if par in spectra:  # Apply log scale to the x-axis for spectral parameters.
-                    axs[0].set_xscale('log')
-                    axs[1].set_xscale('log')
-                plt.show()
+            # Create a two-panel plot for the current parameter.
+            fig, axs = plt.subplots(1,2, figsize=(16,4))
+            # Histogram of all data (before cutoff) and filtered data (overlapping).
+            axs[0].hist(clean_dof_val[par], bins=hist_bins, log=True, color = 'deeppink')
+            axs[0].hist(clean_val[par], bins=hist_bins, log=True, color = 'green')
+            # Histogram of filtered data only.
+            axs[1].hist(clean_val[par], bins=clean_bins, log=True, color = 'green')
+        
+            # Add titles and formatting.
+            plt.suptitle(f'{par}')
+            axs[0].set_title('{} all data and below cutoff (chi2 < {:.2f})'.format(par, chi2_thresh))
+            axs[1].set_title('{} below cutoff only (chi2 < {:.2f})'.format(par, chi2_thresh))
+            
+            if par in spectra:  # Apply log scale to the x-axis for spectral parameters.
+                axs[0].set_xscale('log')
+                axs[1].set_xscale('log')
+            plt.show()
 
 #####################################################################################################################################################################
 
