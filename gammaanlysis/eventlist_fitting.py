@@ -962,8 +962,7 @@ class Eventlist_fitting:
         #### TAKE RESULTS FROM FILE ####
         ################################
         # Log the initial details of the analysis if logging is enabled.
-        if log == True:
-            print(f'Detector: {self.detector}\nFunction {self.fName} with parameters: {self.par_names}')
+        print(f'Detector: {self.detector}\nFunction {self.fName} with parameters: {self.par_names}')
 
         # If a parameter to center is specified, ensure it exists in the dataset.
         if par_to_center is not None:
@@ -975,7 +974,7 @@ class Eventlist_fitting:
         ######################
         #### APPLY CUTOFF ####
         ######################
-        clean_dof_val, clean_val, chi2_thresh = self.__clean_fitresults(quantile_thresh=quantile_thresh, par_to_center=par_to_center,  log=log)
+        clean_dof_val, clean_val, chi2_thresh = self.__clean_fitresults(quantile_thresh=quantile_thresh, par_to_center=par_to_center,  log=True)
         
         ####### PLOT FROM READ_ALLDATA_FIT #######
         # Parameters to apply logarithmic binning (for spectra-like parameters).
