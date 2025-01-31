@@ -178,5 +178,5 @@ def quantize_signal(input_signal, n_bit, input_min, input_max):
     return output_s   
 
 def apply_gauss(x, mean, dev):
-    x_gauss = np.random.normal(mean, dev, size=x.shape) + x
+    x_gauss = np.round(np.random.normal(mean, dev, size=x.shape)) + x
     return x_gauss

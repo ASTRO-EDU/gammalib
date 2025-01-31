@@ -219,7 +219,10 @@ class GammaFunc(ABC):
         
 
     def __get_quantity(self, quantity):
-        ret = np.zeros((self._cfg.size, self._cfg.max_peaks))
+        if len(quantity.shape) > 1:
+            ret = np.zeros((self._cfg.size, self._cfg.max_peaks, quantity.shape[-1]))
+        else:
+            ret = np.zeros((self._cfg.size, self._cfg.max_peaks))
         for i, start, stop in zip(range(self._cfg.size),
                                   self._lookup_table[:-1], 
                                   self._lookup_table[1:]):
@@ -233,6 +236,7 @@ class GammaFunc(ABC):
         return self.__labels
     
     def get_labelsSplit(self):
+        return self.__get_quantity(self.__peak_signals)
         return self.__peak_signals
     
     def get_gammas(self):
@@ -243,13 +247,7 @@ class GammaFunc(ABC):
     
     
     def get_areas(self):
-        areas = np.zeros((self._cfg.size, self._cfg.max_peaks))
-        for i, start, stop in zip(range(self._cfg.size),
-                                  self._lookup_table[:-1], 
-                                  self._lookup_table[1:]):
-            areas[i, 0:stop-start+1] = self.__integrals[start:stop]
-        return areas
-
+        return self.__reshape_integrals()
 
     def get_params(self):
         return [self._params(i) for i in range(self._cfg.size)]
