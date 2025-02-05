@@ -144,7 +144,8 @@ def plot__difference_relative_ratio(y_real, y_pred, bin_size=0.1, path=None, xlo
 
 def plot_difference_relative_ratio_with_percentiles(y_real, y_pred, bin_size=0.1, path=None, 
                                                     xlogscale=False, ylogscale=True, 
-                                                    title='Histogram difference_relative_ratio'):
+                                                    title='Histogram difference_relative_ratio', 
+                                                    res: Optional[dict] = None):
     """
     Plots histograms of difference_relative_ratio and adds vertical lines for key percentiles.
     Removes the boxplot.
@@ -157,9 +158,18 @@ def plot_difference_relative_ratio_with_percentiles(y_real, y_pred, bin_size=0.1
         xlogscale (bool): If True, uses symmetric log scale for x-axis.
         ylogscale (bool): If True, uses log scale for y-axis.
         title (str): Title of the plot.
+        res (Optional[dict]): Optional dictionary where to store results. 
+                              If it is None, it will be creted.
     """
     # Padding di y_real e y_pred per avere la stessa shape
     max_len = max(y_real.shape[-1], y_pred.shape[-1])
+    # Ensure the results dictionary is initialized
+    if res is None:
+        res = {}
+    if not "peak_1" in res.keys():
+        for idx_peak in range(max_len):
+            res[f"peak_{idx_peak + 1}"] = {}
+
     if y_real.shape[-1] < max_len:
         y_real = np.pad(y_real, ((0, 0), (0, max_len - y_real.shape[-1])), 
                         mode='constant', constant_values=1e-9)
@@ -204,6 +214,12 @@ def plot_difference_relative_ratio_with_percentiles(y_real, y_pred, bin_size=0.1
         ax.axvline(p75, color='blue', linestyle='--', linewidth=1)
 
         ax.axvline(p50, color='orange', linestyle='--', linewidth=1, label='50° percentile (median)')
+
+        res[f"peak_{idx_peak + 1}"]['diffRR__p05'] = np.round(p5, 5)
+        res[f"peak_{idx_peak + 1}"]['diffRR__p25'] = np.round(p25, 5)
+        res[f"peak_{idx_peak + 1}"]['diffRR__p50'] = np.round(p50, 5)
+        res[f"peak_{idx_peak + 1}"]['diffRR__p75'] = np.round(p75, 5)
+        res[f"peak_{idx_peak + 1}"]['diffRR__p95'] = np.round(p95, 5)
 
         # Opzioni di scala
         if ylogscale:
@@ -273,8 +289,9 @@ def print__false_prediction_rate(y_real, y_pred, alpha_list: List, res: Optional
     # Ensure the results dictionary is initialized
     if res is None:
         res = {}
-    for idx_peak in range(max_len):
-        res[f"peak_{idx_peak + 1}"] = {}
+    if not "peak_1" in res.keys():
+        for idx_peak in range(max_len):
+            res[f"peak_{idx_peak + 1}"] = {}
 
     # Esegue il padding di y_real se necessario
     if y_real.shape[-1] < max_len:
@@ -337,8 +354,9 @@ def print__difference_over_mean(y_real, y_pred, res: Optional[dict] = None) -> d
     # Ensure the results dictionary is initialized
     if res is None:
         res = {}
-    for idx_peak in range(max_len):
-        res[f"peak_{idx_peak + 1}"] = {}
+    if not "peak_1" in res.keys():
+        for idx_peak in range(max_len):
+            res[f"peak_{idx_peak + 1}"] = {}
 
     # Esegue il padding di y_real se necessario
     if y_real.shape[-1] < max_len:
@@ -397,8 +415,9 @@ def plot__hists(y_real, y_pred,
     # Ensure the results dictionary is initialized
     if res is None:
         res = {}
-    for idx_peak in range(max_len):
-        res[f"peak_{idx_peak + 1}"] = {}
+    if not "peak_1" in res.keys():
+        for idx_peak in range(max_len):
+            res[f"peak_{idx_peak + 1}"] = {}
 
     # Padding degli array se necessario
     if y_real.shape[-1] < max_len:
@@ -515,8 +534,9 @@ def plot__gaussian_fitted(y_real, y_pred,
     # Ensure the results dictionary is initialized
     if res is None:
         res = {}
-    for idx_peak in range(max_len):
-        res[f"peak_{idx_peak + 1}"] = {}
+    if not "peak_1" in res.keys():
+        for idx_peak in range(max_len):
+            res[f"peak_{idx_peak + 1}"] = {}
         
     if y_real.shape[-1] < max_len:
         y_real = np.pad(y_real, ((0, 0), (0, max_len - y_real.shape[-1])), mode='constant', constant_values=1e-9)
@@ -792,8 +812,9 @@ def plot_combined_histograms(y_real, y_pred,
     # Ensure the results dictionary is initialized
     if res is None:
         res = {}
-    for idx_peak in range(max_len):
-        res[f"peak_{idx_peak + 1}"] = {}
+    if not "peak_1" in res.keys():
+        for idx_peak in range(max_len):
+            res[f"peak_{idx_peak + 1}"] = {}
 
     if y_real.shape[-1] < max_len:
         y_real = np.pad(y_real, ((0, 0), (0, max_len - y_real.shape[-1])), 
@@ -923,7 +944,8 @@ def eval_method(y_real, y_pred, method, path=None, lim=1000, res=None):
     plot__difference_relative_ratio(y_real, y_pred, bin_size=0.001, ylogscale=True, path=path,
                                     title=f'difference_relative_ratio {method}')
     plot_difference_relative_ratio_with_percentiles(y_real, y_pred, bin_size=0.001, ylogscale=True, path=path,
-                                                    title=f'difference_relative_ratio {method}')
+                                                    title=f'difference_relative_ratio {method}',
+                                                    res=res_dict)
     print__false_prediction_rate(y_real, y_pred, [0.01, 0.1, 0.2], res=res_dict)
     print__difference_over_mean(y_real, y_pred, res=res_dict)
     # plot__2d_bars(y_real, y_pred, relative=True, logscale=True, path=path,
