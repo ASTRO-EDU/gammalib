@@ -10,10 +10,10 @@ from scipy.signal import find_peaks
 from typing import Union
 import plot_utils
 import time
-from typing import Optional
+from typing import Optional, Dict
 
 from pydantic import BaseModel, Field, field_validator
-from typing import Optional, Union
+from typing import Optional, Union, Any, Dict
 from typing_extensions import Annotated
 
 from conf_parser import CommonConfigModel
@@ -25,7 +25,7 @@ from conf_parser import CommonConfigModel
 
 class GammaFunc(ABC):
     @abstractmethod
-    def _load_config(self, config_path: str)-> CommonConfigModel:
+    def _load_config(self, config_path: Union[str, Dict[str, Any]])-> CommonConfigModel:
         """
         Load configuration file from config file path
         """
@@ -33,15 +33,17 @@ class GammaFunc(ABC):
         #     self._cfg = ConfigModel(**json.load(configfile))
         pass
     
-    def __init__(self, configfile_path, seed=30) -> None:
+    def __init__(self, config: Union[str, Dict[str, Any]], seed=30) -> None:
         """
-        Create an object GammaSim, a simulator for GAMMA-FLASH data from a configuration file.
+        Create a GammaSim object, a simulator for GAMMA-FLASH data from a configuration file or a dictionary.
+
         ## Args
-        * `configfile_path`: configuration file
+        * `config`: Path to a json configuration file (str) or a dictionary containing the configuration (dict).
+        * `seed`: Random seed for reproducibility (default: 30).
         """
         random.seed(seed)
         np.random.seed(seed)
-        self._cfg = self._load_config(configfile_path)
+        self._cfg = self._load_config(config)
         
         # Set self attributes based on config fields
         self._d = np.arange(0, self._cfg.xlen, dtype=np.int16)

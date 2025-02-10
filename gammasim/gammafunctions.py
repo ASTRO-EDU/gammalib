@@ -3,7 +3,7 @@ import json
 import sys
 sys.path.append('/home/gamma/workspace/gammalib')
 import expfuncs.exp as exp
-from typing import Union
+from typing import Union, Dict, Any
 import math
 
 from pydantic import Field
@@ -27,9 +27,24 @@ class CnfgPiecewiseExp(CommonConfigModel):
 # Class for the single exponential signal model
 class GmPiecewiseExp(GammaFunc):
     # Method to load configuration from a JSON file
-    def _load_config(self, config_path: str) -> CommonConfigModel:
-        with open(config_path, 'r') as configfile:
-            self._cfg = CnfgPiecewiseExp(**json.load(configfile))  # Load and parse the JSON into the configuration model
+    def _load_config(self, config: Union[str, Dict[str, Any]]) -> CommonConfigModel:
+        """
+        Load configuration from a JSON file or directly from a dictionary.
+        
+        ## Args:
+        * `config`: Path to a JSON configuration file (str) or a dictionary containing the configuration (dict).
+        
+        ## Returns:
+        * `CommonConfigModel`: Parsed configuration model.
+        """
+        if isinstance(config, dict):
+            self._cfg = CnfgPiecewiseExp(**config)  # Directly initialize from dictionary
+        elif isinstance(config, str):
+            with open(config, 'r') as configfile:
+                self._cfg = CnfgPiecewiseExp(**json.load(configfile))  # Load from JSON file
+        else:
+            raise TypeError("config must be a dictionary or a valid JSON file path (str).")
+        
         return self._cfg
 
     # Method to generate the parameters of the signal
@@ -71,9 +86,24 @@ class CnfgConvolution(CommonConfigModel):
 # Class for the Convolution model
 class GmConvolution(GammaFunc):
     # Method to load configuration from a JSON file
-    def _load_config(self, config_path: str) -> CommonConfigModel:
-        with open(config_path, 'r') as configfile:
-            self._cfg = CnfgConvolution(**json.load(configfile))  # Load and parse the JSON into the configuration model
+    def _load_config(self, config: Union[str, Dict[str, Any]]) -> CommonConfigModel:
+        """
+        Load configuration from a JSON file or directly from a dictionary.
+        
+        ## Args:
+        * `config`: Path to a JSON configuration file (str) or a dictionary containing the configuration (dict).
+        
+        ## Returns:
+        * `CommonConfigModel`: Parsed configuration model.
+        """
+        if isinstance(config, dict):
+            self._cfg = CnfgConvolution(**config)  # Directly initialize from dictionary
+        elif isinstance(config, str):
+            with open(config, 'r') as configfile:
+                self._cfg = CnfgConvolution(**json.load(configfile))  # Load from JSON file
+        else:
+            raise TypeError("config must be a dictionary or a valid JSON file path (str).")
+        
         return self._cfg
             
     # Method to generate the parameters of the signal
@@ -115,9 +145,25 @@ class CnfgConvolutionFOrd(CommonConfigModel):
 
 # Class for the First Order Convolution signal model
 class GmConvolutionFOrd(GammaFunc):
-    def _load_config(self, config_path: str) -> CommonConfigModel:
-        with open(config_path, 'r') as configfile:
-            self._cfg = CnfgConvolutionFOrd(**json.load(configfile))
+    # Method to load configuration from a JSON file
+    def _load_config(self, config: Union[str, Dict[str, Any]]) -> CommonConfigModel:
+        """
+        Load configuration from a JSON file or directly from a dictionary.
+        
+        ## Args:
+        * `config`: Path to a JSON configuration file (str) or a dictionary containing the configuration (dict).
+        
+        ## Returns:
+        * `CommonConfigModel`: Parsed configuration model.
+        """
+        if isinstance(config, dict):
+            self._cfg = CnfgConvolutionFOrd(**config)  # Directly initialize from dictionary
+        elif isinstance(config, str):
+            with open(config, 'r') as configfile:
+                self._cfg = CnfgConvolutionFOrd(**json.load(configfile))  # Load from JSON file
+        else:
+            raise TypeError("config must be a dictionary or a valid JSON file path (str).")
+        
         return self._cfg
             
     # Method to generate the parameters of the signal
@@ -157,9 +203,24 @@ class CnfgORSA(CommonConfigModel):
 
 class GmORSA(GammaFunc):
     # Method to load configuration from a JSON file
-    def _load_config(self, config_path: str) -> CommonConfigModel:
-        with open(config_path, 'r') as configfile:
-            self._cfg = CnfgORSA(**json.load(configfile))
+    def _load_config(self, config: Union[str, Dict[str, Any]]) -> CommonConfigModel:
+        """
+        Load configuration from a JSON file or directly from a dictionary.
+        
+        ## Args:
+        * `config`: Path to a JSON configuration file (str) or a dictionary containing the configuration (dict).
+        
+        ## Returns:
+        * `CommonConfigModel`: Parsed configuration model.
+        """
+        if isinstance(config, dict):
+            self._cfg = CnfgORSA(**config)  # Directly initialize from dictionary
+        elif isinstance(config, str):
+            with open(config, 'r') as configfile:
+                self._cfg = CnfgORSA(**json.load(configfile))  # Load from JSON file
+        else:
+            raise TypeError("config must be a dictionary or a valid JSON file path (str).")
+        
         return self._cfg
             
     # Method to generate the parameters of the signal
@@ -201,9 +262,25 @@ class CnfgSemiGaussian(CommonConfigModel):
 
 # Class for the Semi-Gaussian CR-RC^n signal model
 class GmSemiGaussian(GammaFunc):
-    def _load_config(self, config_path: str) -> CommonConfigModel:
-        with open(config_path, 'r') as configfile:
-            self._cfg = CnfgSemiGaussian(**json.load(configfile))
+    # Method to load configuration from a JSON file
+    def _load_config(self, config: Union[str, Dict[str, Any]]) -> CommonConfigModel:
+        """
+        Load configuration from a JSON file or directly from a dictionary.
+        
+        ## Args:
+        * `config`: Path to a JSON configuration file (str) or a dictionary containing the configuration (dict).
+        
+        ## Returns:
+        * `CommonConfigModel`: Parsed configuration model.
+        """
+        if isinstance(config, dict):
+            self._cfg = CnfgSemiGaussian(**config)  # Directly initialize from dictionary
+        elif isinstance(config, str):
+            with open(config, 'r') as configfile:
+                self._cfg = CnfgSemiGaussian(**json.load(configfile))  # Load from JSON file
+        else:
+            raise TypeError("config must be a dictionary or a valid JSON file path (str).")
+        
         return self._cfg
             
     # Method to generate the parameters of the signal
