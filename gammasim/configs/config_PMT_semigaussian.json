@@ -1,0 +1,23 @@
+{
+    "size": 500000,
+    "xlen": 1000,
+    "sampling_time": 8e-9,
+    "n_bit_quantization": 14,
+    "maxcount_value": 8192,
+    "mincount_value": 0,
+    "max_peaks": 1,
+    "gauss_maxrate": 0.00,
+    "gauss_std": 8.4, 
+    "gauss_mean": "none",
+    "bkgbase_level": 126,
+    "gamma_min": 228,
+    "gamma_max": 10000,
+    "tstart_min": 150,
+    "tstart_max": 151,
+    "delta_tstart": 50,
+    "wf_shape": 5,
+    "tau_min": 1.2000000000000002e-07,
+    "tau_max": 1.2000000000000002e-07,
+    "n_min" : 1,
+    "n_max" : 2
+}
