@@ -1,0 +1,26 @@
+{
+    "gammasim_cfg": "config_method2-w-noise.json",
+    "time_filter": {
+        "alpha_l": 0.002,
+        "alpha_h": 0.9,
+        "gain_k": 0.0001,
+        "in_cond": [
+            100.0
+        ],
+        "th_dy": 15432.336840189751,
+        "th_d2y": 48515526534.46768,
+        "dev_ord_det": 1,
+        "zero_cr_window": 10,
+        "window_sz": 15
+    },
+    "trap_filter": {
+        "m": 210,
+        "l": 30,
+        "ftd_s": 20,
+        "ftd_e": 20
+    },
+    "charge_int_filter": {
+        "predelay": 100,
+        "width": 400
+    }
+}
